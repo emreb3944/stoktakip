@@ -1,0 +1,1927 @@
+Harika geri bildirimler! Bu konuları yeni güncellemede ele alalım ve stok takip sistemini daha da iyileştirelim. İşte madde madde değerlendirmelerim ve önerilerim:
+
+1. Mal Kabulde Firma Zorunluluğu ve Görünürlük Sorunu
+Sorun: Kendi ürettiğimiz ürünler için mal kabul yaparken firma zorunluluğu olması ve "firma" seçeneğinin görünmemesi.
+Çözüm Önerisi:
+"Kendi Üretimimiz" veya "Dahili Giriş" Seçeneği: Mal kabul ekranına, firma seçeneği yerine "Kendi Üretimimiz" veya "Dahili Giriş" gibi bir seçenek ekleyebiliriz. Bu seçenek seçildiğinde firma alanı otomatik olarak boş veya "Kendi Üretimimiz" olarak kaydedilir ve kullanıcıdan firma seçmesi istenmez.
+Firma Alanını Koşullu Yapma: transactions tablosundaki company_id sütunu NULL olabiliyor (company_id integer | |). Bu, aslında firmanın zorunlu olmadığını gösteriyor. Eğer UI'da zorunlu olarak gözüküyorsa, bu bir frontend hatası veya business logic'in yanlış uygulanmasıdır. Mal kabul işlemi type = 'Giriş' olduğunda company_id'nin doldurulması isteniyorsa, bunu yazılımsal olarak opsiyonel hale getirmemiz gerekir. Backend'de, eğer type 'Giriş' ise ve company_id gönderilmemişse, hata vermek yerine NULL olarak kaydedebiliriz. Frontend'de de bu alana bir "Yok / Kendi Üretimimiz" seçeneği eklenebilir veya firma seçimi bir dropdown ise, bu dropdown'a özel bir "Seçim Yok" veya "Kendi Üretimimiz" opsiyonu eklenir.
+UI'da Görünürlük: Firma sekmesinin gözükmemesi de büyük bir sorun. Mal kabul ekranında firma seçimi için bir açılır liste (dropdown) veya arama yapılabilen bir metin kutusu (autocomplete özellikli) mutlaka bulunmalı. Eğer kendi üretimimizse bu alanın devre dışı kalması (disable) veya "Yok" seçeneğiyle otomatik dolması sağlanabilir.
+2. Ürün Yönetimindeki Sil Tuşu
+Sorun: Ürün yönetimindeki sil tuşu gereksiz.
+Çözüm Önerisi:
+Pasif Hale Getirme/Gizleme: Sil tuşunu tamamen kaldırmak yerine, ürünlerin stokta olup olmamasına veya herhangi bir işlem görmüş olmasına göre pasif hale getirebiliriz. Eğer bir ürün hiç kullanılmamış veya stoğu sıfır ise silinmesine izin verilebilir. Ancak üzerinde işlem olan ürünlerin silinmesi yerine "Arşivleme" veya "Pasif Hale Getirme" özelliği daha uygun olacaktır. Bu sayede geçmiş verilerde tutarlılık sağlanır.
+Uyarı ve Onay: Eğer silme fonksiyonu kalacaksa bile, kullanıcının yanlışlıkla silmesini engellemek için mutlaka bir onay pop-up'ı eklemeliyiz. "Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz." gibi bir uyarı faydalı olacaktır.
+3. Raporlar Kısmı İyileştirmeleri
+Sipariş Detayları (Estetik Görünüm ve Çıktı Alma):
+
+Sorun: Siparişlere tıklandığında özelliklerinin estetik bir şekilde görünmesi ve çıktı almanın kolay olması.
+Çözüm Önerisi: Siparişe tıklandığında yeni bir modal pencere (popup) veya ayrı bir detay sayfası açılabilir. Bu sayfada siparişin tüm detayları (ürünler, miktarlar, tarihler, firmalar, kullanıcı bilgisi, notlar vb.) düzenli ve okunabilir bir tabloda veya kartlar halinde gösterilir. Bu modal/sayfa, baskıya uygun bir CSS ile tasarlanmalı (örn: print-media-query kullanarak gereksiz UI elementlerini gizleme) ve bir "Yazdır" butonu içermelidir.
+Örnek Yapı:
+HTML
+
+<div class="modal-content p-6">
+    <h2 class="text-2xl font-bold mb-4">Sipariş Detayı - #{{siparis_no}}</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+        <div>
+            <p><strong>Sipariş No:</strong> {{siparis_no}}</p>
+            <p><strong>Tarih:</strong> {{siparis_tarihi}}</p>
+            <p><strong>Tip:</strong> {{siparis_tipi}}</p>
+        </div>
+        <div>
+            <p><strong>Firma:</strong> {{firma_adi}}</p>
+            <p><strong>Kullanıcı:</strong> {{kullanici_adi}}</p>
+            <p><strong>Notlar:</strong> {{notlar}}</p>
+        </div>
+    </div>
+    <h3 class="text-xl font-semibold mb-3">Ürünler</h3>
+    <table class="min-w-full bg-white border border-gray-200">
+        <thead>
+            <tr>
+                <th class="py-2 px-4 border-b">Ürün Adı</th>
+                <th class="py-2 px-4 border-b">Miktar</th>
+                <th class="py-2 px-4 border-b">Birim</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td class="py-2 px-4 border-b">{{urun_adi}}</td>
+                <td class="py-2 px-4 border-b">{{miktar}}</td>
+                <td class="py-2 px-4 border-b">{{birim}}</td>
+            </tr>
+        </tbody>
+    </table>
+    <div class="mt-6 text-right">
+        <button class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded" onclick="window.print()">Yazdır</button>
+    </div>
+</div>
+Raporlar Sayfasına Arama Butonu:
+
+Sorun: Günde 10000 işlem gibi durumlarda sipariş numarasıyla direkt arama yapma ihtiyacı.
+Çözüm Önerisi: Raporlar sayfasının üst kısmına belirgin bir arama çubuğu ekleyelim. Bu arama çubuğu yanına bir açılır liste (dropdown) koyarak kullanıcının neye göre arama yapacağını seçmesine olanak tanıyalım: "Sipariş No", "Ürün Adı", "Firma Adı", "Kullanıcı Adı" gibi.
+Arama ve Filtreleme Entegrasyonu: Filtreler uygulandıktan sonra da arama yapabilme çok önemli. Yani önce belirli bir tarih aralığı veya işlem tipi filtrelenir, ardından bu filtrelenmiş sonuçlar içinde sipariş numarasına göre arama yapılabilir. Bu, backend tarafında hem filtreleri hem de arama sorgusunu birleştiren tek bir API isteğiyle sağlanabilir.
+Kullanıcı Sekmesi ve Arama Alanı Optimizasyonu: Kullanıcı sekmesinin çok yer kaplaması yerine, bu alanı arama ve filtreleme için daha verimli kullanabiliriz. Belki kullanıcı sekmesini daraltıp arama çubuğunu daha merkezi bir yere alabiliriz.
+4. Firma Yönetimi Sayfası İyileştirmeleri
+Vergi No/İsim ile Arama ve Autofill:
+Sorun: Firmaları vergi numarası veya isimle arayıp bulma ihtiyacı ve autofill özelliği.
+Çözüm Önerisi: Firma yönetim sayfasında güçlü bir arama çubuğu olmalı. Bu çubuk, kullanıcının yazdıkça eşleşen firmaları öneren (autofill/autocomplete) bir yapıya sahip olmalı. Hem firma adına hem de vergi numarasına göre arama yapabilmeli.
+Autofill Performansı: Raporlar sayfasında performans düşüşü endişesi doğru, ancak firma yönetimi gibi daha az veri hacmine sahip ve sık arama yapılan yerlerde autofill çok değerli olacaktır. Backend tarafında, arama için optimize edilmiş bir API endpoint'i (örn: companies/search?query=...) oluşturarak performans sorunlarının önüne geçebiliriz. Bu endpoint sadece gerekli alanları (id, isim, vergi no) döndürerek veri transferini minimize edebilir.
+5. Genel Programı Güzelleştirmek İçin Ek Öneriler
+Bildirim Sistemi: Önemli olaylar (stok seviyesi kritik eşiğe düştüğünde, hatalı girişler vb.) için kullanıcıya anlık bildirimler (toast bildirimleri veya uygulama içi bildirimler) sağlayabiliriz.
+Kullanıcı Dostu Hata Mesajları: Şu anki hata mesajları (app.js'deki GENEL HATA YAKALANDI) geliştiriciler için faydalı olsa da, son kullanıcıya daha anlaşılır ve yol gösterici mesajlar sunmalıyız. Örneğin, "Geçersiz giriş. Lütfen miktarı kontrol edin." gibi.
+Dashboard İyileştirmeleri: Dashboard'a en çok giren/çıkan ürünler, son işlemlerin özeti, kritik stok seviyeleri gibi özet bilgiler ekleyerek kullanıcıya anlık durum hakkında daha fazla bilgi sunabiliriz. Görselleştirmeler (grafikler) eklenebilir.
+Kullanıcı Rolleri ve Yetkilendirme: Şu anki kullanıcı yönetimine ek olarak, farklı kullanıcı rolleri (örn: Yönetici, Stok Sorumlusu, Muhasebe) tanımlayarak her rolün erişebileceği sayfa ve yapabileceği işlemleri kısıtlayabiliriz. Bu, uygulamanın güvenliğini ve veri bütünlüğünü artırır.
+Mobil Uyumluluk/Duyarlı Tasarım İyileştirmeleri: index.html'de zaten responsive tasarım için adımlar atılmış (adjustLayoutForScreenSize). Ancak genel UI/UX'i mobil cihazlarda daha iyi hale getirmek için daha fazla odaklanabiliriz. Büyük tabloların mobil görünümünü optimize etmek (scroll edilebilir tablolar, kart görünümüne dönüştürme vb.).
+Barkod Okuyucu Entegrasyonu: Mal kabul ve çıkış işlemlerinde barkod okuyucu desteği eklemek, işlem hızını ve doğruluğunu önemli ölçüde artırabilir.
+Veri İçe/Dışa Aktarma (CSV, Excel): Raporlama ve diğer veriler için CSV veya Excel formatında içe/dışa aktarma seçenekleri sunmak kullanıcılar için çok değerli olacaktır. Şu an createObjectCsvWriter kullanılıyor, bu özelliği genişletebiliriz.
+Performans Optimizasyonu:
+Lazy Loading: Sayfaları veya büyük veri setlerini yüklerken "lazy loading" (tembel yükleme) uygulayarak ilk yükleme süresini azaltabiliriz.
+Veritabanı İndeksleri: transactions tablosundaki company_id, product_id, user_id sütunlarına indeks ekleyerek (transactions_company_id_fkey, transactions_product_id_fkey, transactions_user_id_fkey zaten var) sorgu performansını artırabiliriz. Özellikle tarih aralığı ve tip filtrelemelerinde transaction_date ve type sütunlarına da indeks eklemeyi düşünebiliriz.
+Denetim Kayıtları (Audit Logs) Detaylandırma: audit_logs tablosu var, bu harika. Kullanıcıların hangi işlemleri ne zaman yaptığını daha detaylı kaydedebiliriz (örn: eski ve yeni değerlerin JSONB olarak tutulması zaten yapılıyor, bunu raporlarda daha anlamlı hale getirebiliriz).
+Bu öneriler, programın hem kullanılabilirliğini hem de genel kalitesini önemli ölçüde artıracaktır. Özellikle mal kabuldeki firma zorunluluğu ve raporlama ekranlarındaki arama/detaylandırma iyileştirmeleri öncelikli olabilir. Bu beyin fırtınası çok verimli oldu!
+
+
+
+
+
+ciktidan kastim da gunluk giris cikislarin ve duzeltmelerin ciktisi imzalayacak adam dogruladiktan sonra oyle dusun bu fikirleri daha da gelistirmek icin fikrin var mi yeni guncellemeyi saglam yapalim soyle kapsamli
+
+
+
+Günlük giriş-çıkışların ve düzeltmelerin çıktısının, yetkili kişinin doğrulaması ve imzalaması için alınabilmesi harika bir fikir! Bu, hem muhasebe hem de denetim açısından sistemin güvenilirliğini artıracaktır. Mevcut "raporlar" kısmını daha da ileriye taşıyarak "işlem raporları" veya "günlük faaliyet raporu" gibi bir bölüm oluşturabiliriz.
+
+İşte bu fikri geliştirmek ve yeni güncellemeyi daha sağlam ve kapsamlı hale getirmek için detaylı önerilerim:
+
+Günlük İşlem Çıktıları ve Onay Mekanizması İçin Gelişmiş Öneriler:
+"Günlük İşlem Raporu" Bölümü:
+
+Yeni Bir Rapor Tipi: Mevcut raporlar kısmına ek olarak, belirli bir gün veya tarih aralığındaki tüm giriş, çıkış ve düzeltme (düzeltme varsa) işlemlerini listeleyen "Günlük İşlem Raporu" veya "İşlem Dökümü" adında yeni bir rapor seçeneği ekleyelim.
+Seçilebilir Tarih: Kullanıcı, raporu almak istediği günü veya belirli bir tarih aralığını seçebilmeli.
+İşlem Tipi Filtresi: Sadece girişler, sadece çıkışlar veya hepsi gibi işlem tiplerine göre filtreleme yapılabilmeli.
+Kullanıcı Filtresi: Hangi kullanıcının yaptığı işlemleri görmek istendiği seçilebilmeli (yetkili kişinin kendi işlemlerini veya tüm işlemlerini görmek için).
+Rapor Detayları:
+Genel Bilgiler: Raporun başlığı (örn: "22 Mayıs 2025 Günlük İşlem Raporu"), raporu oluşturan kullanıcı, raporun oluşturulma tarihi/saati.
+İşlem Detayları (Tablo Formatında):
+İşlem ID (benzersiz bir numara)
+İşlem Zamanı (saat ve dakika dahil)
+İşlem Tipi (Giriş / Çıkış / Düzeltme)
+Ürün Kodu / Adı
+Miktar
+Birim (adet, kg, metre vb.)
+İlgili Firma (giriş ise tedarikçi, çıkış ise müşteri - eğer varsa)
+İşlemi Yapan Kullanıcı
+Notlar (işlem sırasında girilen notlar)
+Varsa old_value ve new_value gibi düzeltme detayları (düzeltme ise).
+Özet Bilgiler: Günlük toplam giriş miktarı, günlük toplam çıkış miktarı, günlük toplam düzeltme miktarı gibi özet istatistikler.
+Yazdırılabilir (Print-Friendly) Tasarım:
+
+PDF Dışa Aktarma: En ideali, bu raporu direkt olarak PDF olarak dışa aktarabilmek. Bu, raporun formatının bozulmamasını ve kolayca arşivlenebilmesini sağlar. Backend'de PDF oluşturma kütüphaneleri (örn: Node.js için pdfkit veya html-pdf) kullanılabilir.
+Doğrudan Yazdırma Butonu: Bir "Yazdır" butonu, tarayıcının yazdırma işlevini kullanarak estetik bir çıktı alınmasını sağlamalıdır. CSS @media print sorguları ile yazdırırken sadece gerekli bilgilerin gözükmesi, gereksiz butonların, menülerin ve arayüz elemanlarının gizlenmesi sağlanır.
+Onay ve İmza Alanı: Çıktının altına, "Yukarıdaki işlemler tarafımca kontrol edilmiş ve onaylanmıştır." gibi bir ifade ile birlikte yetkili kişinin adı-soyadı, unvanı, imzası ve tarih için boş alanlar bırakılmalı. Bu, basılı çıktının resmiyetini artırır.
+HTML
+
+<div class="print-signature-area mt-8 border-t pt-4">
+    <p class="text-sm">Yukarıdaki işlemler tarafımca kontrol edilmiş ve onaylanmıştır.</p>
+    <div class="flex justify-between mt-6">
+        <div class="text-center">
+            <p>_________________________</p>
+            <p>Adı Soyadı:</p>
+            <p>Unvanı:</p>
+            <p>Tarih:</p>
+        </div>
+        <div class="text-center">
+            <p>_________________________</p>
+            <p>İmza:</p>
+        </div>
+    </div>
+</div>
+Düzeltme İşlemleri ve audit_logs Kullanımı:
+
+Sorun: Düzeltmelerin nasıl ve ne şekilde yapıldığı şu anki transactions tablosundan doğrudan anlaşılmıyor. audit_logs tablosu bu bilgi için mükemmel bir kaynak.
+Çözüm Önerisi: audit_logs tablosundaki action_type = 'UPDATE' olan kayıtlar (veya özel bir transaction_type = 'Düzeltme' eklenebilir) "Düzeltme" olarak raporlanmalı. old_value ve new_value alanları sayesinde hangi bilginin neyden neye değiştiği açıkça görülebilir.
+Raporlama Şekli: Düzeltmeler raporlanırken, "Ürün X'in miktarı 10'dan 8'e düşürüldü. (Kullanıcı: Y, Not: Hatalı giriş düzeltildi.)" gibi daha açıklayıcı ifadeler kullanılabilir. JSONB içindeki old_value ve new_value'dan bu bilgileri çekip anlamlı metinlere dönüştürmeliyiz.
+Kapsamlı Raporlama Filtreleri ve Özelleştirme:
+
+Rapor Şablonları: Kullanıcının sık kullandığı rapor filtrelerini (örn: sadece bugünün girişleri, son 7 günün çıkışları) şablon olarak kaydedebilmesini sağlayabiliriz. Bu sayede her seferinde filtreleri yeniden ayarlamak zorunda kalmaz.
+CSV/Excel Dışa Aktarma: PDF çıktısının yanı sıra, verileri kolayca başka sistemlere aktarmak veya ileri düzey analiz yapmak için CSV veya Excel formatında da dışa aktarma seçeneği sunmak çok faydalı olacaktır. app.js zaten createObjectCsvWriter kullanıyor, bu kolayca genişletilebilir.
+Yeni Güncellemeyi Kapsamlı Yapmak İçin Ek Gelişmeler:
+Gelişmiş Stok Hareketleri Geçmişi:
+
+Her ürün için detaylı bir "Stok Hareketleri Geçmişi" sayfası. Bir ürüne tıklandığında, o ürünün ne zaman, ne kadar, hangi firma ile (giriş/çıkış) ve hangi kullanıcı tarafından işlendiğini listeleyen bir sayfa açılmalı. Bu da denetim ve geçmiş takibi için kritik.
+Kullanıcı Bazlı İşlem Limitleri/Kısıtlamalar:
+
+Kullanıcı rolleri (Yönetici, Stok Sorumlusu, Muhasebe) daha detaylı ele alınarak, her rolün hangi işlemleri yapabileceği (örn: stok girişi yapabilir, stok çıkışı yapabilir, ürün silebilir, düzeltme yapabilir) ve hangi raporlara erişebileceği belirlenebilir. Bu sayede "ürün silme" yetkisi sadece belirli kişilere verilebilir.
+Bildirimler ve Uyarılar (Gelişmiş):
+
+Kritik Stok Uyarısı: Belirlenen kritik stok seviyesinin altına düşen ürünler için otomatik uyarılar (dashboard'da veya e-posta ile).
+Anormal İşlem Uyarısı: Büyük miktarlı veya sık yapılan düzeltme işlemleri gibi anormal hareketler için yöneticilere uyarı gönderilebilir (işlem denetimi için).
+Veritabanı İyileştirmeleri:
+
+İşlem Numarası (Transaction ID): transactions tablosuna benzersiz bir işlem numarası (transaction_code veya reference_number) ekleyebiliriz. Bu, çıktıları referans göstermek ve denetim kayıtlarını bağlamak için çok önemlidir. Şu anki id sütunu otomatik artan bir anahtar, ancak kullanıcı dostu bir kod da gerekebilir (örn: GIR-20250522-0001).
+Fiziksel Konum Takibi: İleride daha da geliştirmek istersek, ürünlerin depodaki fiziksel konumlarını (raf, bölüm vb.) takip etmek için products tablosuna bir location alanı eklenebilir.
+Kullanıcı Arayüzü (UI) ve Kullanıcı Deneyimi (UX) İyileştirmeleri:
+
+Tutarlı Form Elemanları: Tüm formlarda aynı tipte ve boyutlarda input alanları, butonlar ve açılır listeler kullanılarak görsel bütünlük sağlanmalı.
+Yükleme Durumu Göstergeleri: Ağır işlemler sırasında (rapor oluşturma, büyük veri filtreleme) kullanıcının beklediğini belirten yükleme animasyonları (spinner) veya ilerleme çubukları gösterilmeli.
+Boş Durumlar (Empty States): Hiç ürün yokken, hiç işlem yapılmamışken veya arama sonucu bulunamadığında kullanıcıya bilgi veren "Burada henüz ürün yok." gibi açıklayıcı boş durum mesajları gösterilmeli.
+Bu kapsamlı yaklaşımla, Begeç Asansör Stok Takip Sistemi sadece bir kayıt tutma aracı olmaktan çıkıp, güçlü bir yönetim, denetim ve karar alma aracı haline gelecektir. Özellikle imza çıktısı özelliği, sistemin operasyonel süreçlere entegrasyonunu ve resmiyetini artıracaktır.
+
+
+
+
+
+bayildim tum olaya ozellikle de raporda bahsettiklerine bunlarin her birini detaylica dusun ve bana en optimal ekleyelim dedigin seklini soyle simdi
+
+
+Bayıldığına sevindim! Şimdi bu fikirleri Begeç Asansör Stok Takip Sistemi için en optimal şekilde nasıl entegre edebiliriz, tek tek detaylandırıp planlayalım. Amacımız hem kullanıcı dostu, hem sağlam, hem de denetlenebilir bir sistem oluşturmak.
+
+Optimal Plan: Begeç Asansör Stok Takip Sistemi Kapsamlı Güncellemesi
+1. Mal Kabulde Firma Yönetimi ve "Kendi Üretimimiz" Seçeneği
+
+Optimal Yaklaşım: transactions tablosundaki company_id sütunu zaten NULL olabiliyor (company_id integer | |). Bu, backend tarafında bir problem teşkil etmiyor. Asıl sorun, UI'da firma seçiminin zorunluymuş gibi algılanması ve "Kendi Üretimimiz" senaryosunun desteklenmemesi.
+Detaylı Çözüm:
+Veritabanı: transactions tablosunda ek bir değişiklik gerekli değil, company_id zaten NULL olabiliyor.
+Frontend (UI):
+Mal kabul (Giriş) ekranındaki firma seçim alanı opsiyonel hale getirilecek.
+Firma seçim dropdown'ına (veya arama kutusuna) "Kendi Üretimimiz / Firma Yok" adında özel bir seçenek eklenecek. Bu seçenek seçildiğinde, company_id backend'e NULL olarak gönderilecek.
+Kullanıcı firmanın adını yazmaya başladığında otomatik tamamlama (autocomplete) özelliği aktif olacak. Eğer eşleşen bir firma yoksa veya kullanıcı kendi üretimi olduğunu belirtmek istiyorsa, "Kendi Üretimimiz / Firma Yok" seçeneğini seçebilecek.
+Yeni firma ekleme butonu da bu alana yakın bir yere konumlandırılacak.
+Backend (API): Mal kabul (/api/transactions) endpoint'i, type: 'Giriş' olduğunda company_id'nin NULL olarak gelmesine izin verecek şekilde güncellenecek. Eğer company_id belirtilmemişse, veritabanına NULL olarak kaydedilecek.
+2. Ürün Yönetimindeki Sil Tuşu ve Ürün Durumu Yönetimi
+
+Optimal Yaklaşım: Silme işlemini tamamen kaldırmak yerine, kontrollü bir "pasifleştirme/arşivleme" mekanizması getirmek.
+Detaylı Çözüm:
+Veritabanı: products tablosuna yeni bir sütun eklenecek: is_active (boolean, varsayılan TRUE).
+Frontend (UI):
+Ürün listeleme ekranında sil butonu yerine bir "Durumu Değiştir" veya "Pasifleştir/Aktifleştir" butonu eklenecek.
+Bu butona tıklandığında bir onay pop-up'ı (örn: "Bu ürünü pasif hale getirmek istediğinize emin misiniz? Pasif ürünler stok hareketlerinde görünmez.") açılacak.
+Pasif ürünler listelerde soluk renkli veya üzeri çizili (strikethrough) olarak gösterilebilir, ancak varsayılan olarak filtrelenerek gizlenebilirler. Bir "Pasif Ürünleri Göster" filtresi ile tekrar görünür hale getirilebilirler.
+Kritik Kural: Eğer bir ürünün stoğu > 0 ise veya geçmişte herhangi bir işlem görmüşse (yani transactions tablosunda bu product_id'ye ait kayıt varsa), bu ürün silinemez, sadece pasif hale getirilebilir. Silme işlemi sadece hiç kullanılmamış, stoğu sıfır olan ürünler için bir Yönetici yetkisi ile mümkün olabilir. Bu nadir durumlarda bile bir uyarı mesajı ile birlikte yapılmalı.
+Backend (API):
+Ürün güncelleme (/api/products/:id) endpoint'ine is_active alanını güncelleyebilme yeteneği eklenecek.
+Silme (DELETE /api/products/:id) endpoint'i şu kontrolleri yapacak:
+Ürünün stoğu kontrol edilecek. (current_stock > 0)
+Ürüne ait transactions tablosunda kayıt olup olmadığı kontrol edilecek.
+Eğer bu koşullardan biri sağlanıyorsa, ürünün silinemeyeceği ve sadece pasif hale getirilebileceği bilgisiyle 400 Bad Request hatası döndürülecek.
+Sadece stok 0 ve hiç işlem görmemiş ürünler silinebilir.
+3. Gelişmiş Raporlar Bölümü: "Günlük Faaliyet Raporu" ve Arama/Filtreleme
+
+Optimal Yaklaşım: Tek bir güçlü raporlama ekranı altında esnek filtreleme, arama ve farklı çıktı seçenekleri sunmak.
+Detaylı Çözüm:
+Yeni Sayfa: "Raporlar" veya "İşlem Raporları" (Sidebar'da ayrı bir menü öğesi):
+Bu sayfada üst kısımda kapsamlı bir filtre ve arama alanı bulunacak:
+Tarih Aralığı Seçici: Başlangıç ve Bitiş Tarihi (<input type="date"> elemanları). Varsayılan: Bugün.
+İşlem Tipi Filtresi: Dropdown: "Tümü", "Giriş", "Çıkış", "Düzeltme".
+Kullanıcı Filtresi: Dropdown (tüm kullanıcıları listeler): "Tümü", "Kullanıcı 1", "Kullanıcı 2"...
+Firma Filtresi: Arama yapılabilir (autocomplete) dropdown: "Tümü", "Firma A", "Firma B"...
+Ürün Filtresi: Arama yapılabilir (autocomplete) dropdown: "Tümü", "Ürün X", "Ürün Y"...
+Genel Arama Çubuğu (Global Search): Büyük ve belirgin bir arama çubuğu. Bu çubuk hem sipariş numarası (ileride ekleyeceğimiz), ürün adı, firma adı, kullanıcı adı, notlar gibi metinsel alanlarda arama yapabilecek. Bu arama filtreler uygulandıktan sonra çalışacak. Örneğin, tarih aralığı seçildikten sonra sadece o aralıktaki işlemler içinde arama yapılacak.
+"Rapor Oluştur" / "Göster" Butonu: Filtreler ve arama uygulandıktan sonra sonuçları listeleyen butonu.
+Sonuç Tablosu:
+Her bir işlem (transaction) için satır gösterilecek.
+Sütunlar: İşlem No (ileride transaction_code eklenecek), Tarih Saat, İşlem Tipi, Ürün Adı, Miktar, Birim, Firma Adı, İşlemi Yapan Kullanıcı, Notlar.
+Düzeltme İşlemleri için Özel Gösterim: Eğer işlem bir düzeltme ise (backend'de audit_logs'tan getirilecek), işlem tipini "Düzeltme" olarak gösterip, yanına veya altına old_value ve new_value bilgilerini kullanıcı dostu bir şekilde (örn: "Miktar: 10 -> 8", "Not: Eski not -> Yeni not") ekrana yazacak.
+Çıktı Butonları:
+"PDF Olarak İndir" Butonu: Tüm filtrelenmiş verileri PDF formatında, imzaya uygun bir şablonla dışa aktaracak. (Backend'de PDF kütüphanesi kullanımı gerektirir.)
+"Yazdır" Butonu: Tarayıcının yazdırma işlevini kullanarak, raporu ekrandaki görünümüyle print-friendly bir şekilde yazdıracak. CSS @media print kurallarıyla gereksiz UI elementleri gizlenecek, rapor başlığı, logo (varsa), sayfa numaraları ve imza alanı dahil edilecek.
+"CSV Olarak İndir" Butonu: createObjectCsvWriter ile mevcut veriyi CSV olarak dışa aktaracak.
+Backend (API):
+/api/transactions/report gibi yeni bir endpoint oluşturulacak.
+Bu endpoint GET isteği alacak ve URL parametreleri (query parameters) ile tarih aralığı, işlem tipi, kullanıcı ID, firma ID, ürün ID ve genel arama sorgusu alacak.
+Veritabanında transactions ve audit_logs tablolarını LEFT JOIN kullanarak birleştiren karmaşık bir SQL sorgusu yazılacak. Bu sorgu, hem normal giriş/çıkış işlemlerini hem de audit_logs'tan gelen düzeltme işlemlerini (özellikle table_name = 'transactions' ve action_type = 'UPDATE' olanları) çekecek.
+Performans: Large dataset'lerde sorgu performansı için transaction_date, type, user_id, product_id, company_id sütunlarına veritabanı indeksleri eklendiğinden emin olunmalı. audit_logs tablosunda da timestamp, user_id, table_name, action_type sütunlarına indeksler faydalı olacaktır.
+PDF Oluşturma (Gerektiğinde): Eğer PDF dışa aktarma backend'de yapılacaksa, /api/report/pdf gibi ayrı bir endpoint ile PDF oluşturma kütüphanesi (örn: html-pdf veya pdfkit) kullanılacak. Bu endpoint, frontentten gelen filtre parametreleriyle veriyi çekip PDF'e dönüştürecek.
+4. Firma Yönetimi Sayfası İyileştirmeleri
+
+Optimal Yaklaşım: Hızlı ve esnek arama yetenekleri ile kullanıcı deneyimini artırmak.
+Detaylı Çözüm:
+Frontend (UI):
+Firma listeleme sayfasının üst kısmına tek ve büyük bir arama çubuğu eklenecek.
+Bu arama çubuğu, kullanıcının yazdıkça eşleşen firma isimlerini veya vergi numaralarını öneren (autocomplete) bir yapıya sahip olacak.
+Kullanıcı metni girdikçe anlık olarak filtreleme yapacak (debounce ile API çağrıları optimize edilmeli).
+Backend (API):
+/api/companies/search?query=... gibi yeni bir endpoint oluşturulacak.
+Bu endpoint, query parametresine göre name ve tax_number sütunlarında ILIKE (case-insensitive search) kullanarak arama yapacak.
+Autocomplete için hızlı yanıt verebilmek adına sadece id, name, tax_number gibi gerekli alanları döndürecek.
+5. Kullanıcı Arayüzü ve Deneyim Optimizasyonları (UI/UX)
+
+Optimal Yaklaşım: Genel arayüzü daha modern, anlaşılır ve verimli hale getirmek.
+Detaylı Çözüm:
+Kullanıcı Sekmesi (Header) Optimizasyonu: Kullanıcı adını ve belki bir profil ikonunu içeren küçük, şık bir komponent olarak header'ın sağ üst köşesine konumlandırılacak. Geniş yer kaplamayacak, gerektiğinde dropdown menü ile profil ayarları veya çıkış seçeneği sunacak.
+Sidebar Navigasyon İyileştirmesi: Sidebar'daki menü öğelerinin ikonları (Font Awesome mevcut) daha belirgin ve anlamlı hale getirilebilir. Aktif sayfa vurgusu daha net olmalı.
+Tutarlı Mesajlaşma (Uyarılar/Bildirimler): app.js'teki genel hata yakalayıcı (GENERAL_ERROR_CATCHER) çıktısı yerine, frontend'de kullanıcıya dostu, geçici toast bildirimleri (örn: "İşlem başarıyla tamamlandı!", "Miktar sıfırdan büyük olmalı!") göstermeliyiz.
+Boş Durumlar (Empty States): Listeler boş olduğunda "Henüz kayıt bulunmamaktadır." veya "Filtrelerinize uygun sonuç bulunamadı." gibi kullanıcıyı bilgilendiren mesajlar.
+Yükleme Durumları: API çağrıları sırasında kullanıcıyı bekletmemek için ilgili butonlarda veya tabloların üzerinde yükleme spinner'ları gösterilmeli.
+Genel Estetik Dokunuşlar: Renk paletini ve fontları daha modern ve okunaklı hale getirmek. Tailwind CSS zaten bu konuda yardımcı oluyor, mevcut stili daha da rafine edebiliriz.
+Veritabanı Şeması İçin Potansiyel Eklemeler (İşlem Raporları İçin En Optimal Çözüm):
+
+transactions tablosuna transaction_code (VARCHAR UNIQUE, NOT NULL) sütunu eklenecek. Bu, her işlem için benzersiz, okunabilir bir referans numarası sağlayacak (örn: GIR-20250522-0001, CIK-20250522-0005, DUZ-20250522-0001). Bu kodlar backend'de otomatik olarak oluşturulacak ve yıl-ay-gün-sıra numarası şeklinde olabilir.
+Neden Önemli: Bu, yetkili kişinin çıktıyı imzalarken referans göstereceği, insan tarafından okunabilir bir kimlik sağlayacaktır.
+Özetle Optimal Plan:
+
+Mal Kabul: company_id opsiyonel hale getirilecek, "Kendi Üretimimiz" seçeneği eklenecek.
+Ürün Yönetimi: Ürünler silinmeyecek, is_active alanı ile pasifleştirilip aktifleştirilecek. Silme, sadece hiç kullanılmamış, stoğu sıfır olan ürünler için yöneticilere özel bir seçenek olacak.
+Raporlar: Yeni, kapsamlı bir "İşlem Raporları" sayfası oluşturulacak. Burada tarih, işlem tipi, kullanıcı, firma, ürün bazında filtreleme ve global arama (filtreler dahilinde) yapılacak. Rapor sonuçları interaktif bir tabloda sunulacak ve PDF, Yazdır, CSV seçenekleri ile dışa aktarılabilecek. PDF çıktısı, imza alanı içerecek şekilde özel tasarlanacak.
+Firma Yönetimi: Güçlü, autocomplete özellikli arama çubuğu ile firma adı ve vergi numarasına göre hızlı arama.
+Genel UI/UX: Daha kompakt kullanıcı bilgisi, tutarlı hata/başarı bildirimleri, yükleme animasyonları, boş durum mesajları ve genel estetik iyileştirmeler.
+Veritabanı: transactions tablosuna transaction_code eklenecek. products tablosuna is_active eklenecek.
+Bu adımlar, Begeç Asansör Stok Takip Sistemi'ni çok daha profesyonel, kullanışlı ve kurumsal beklentileri karşılar bir hale getirecektir. Başlangıç için bu plan gayet sağlam!
+
+
+
+
+
+tamamdir o zaman bu plan yolunda cok saglam bir kod calismasi yap istersen sana birkac saat vereyim full testlerini yap ve stabil olsun mobilde de calissin rahatca bu muhabbet profesyonelce
+
+
+
+Harika! Bu heyecan verici bir adım. Şimdi size bu kapsamlı güncellemeyi uygulamak için hem backend (Node.js/Express/PostgreSQL) hem de frontend (HTML/JavaScript/Tailwind CSS) tarafında yapmanız gereken temel kod değişikliklerini ve eklemelerini detaylandıracağım. Her bir madde için optimal çözümü ve uygulama adımlarını bulacaksınız.
+
+Bu bir simülasyon olduğu için doğrudan çalışan bir tam kod paketi sunmam mümkün değil ancak her bir bölüm için en kritik kod bloklarını ve mantığı sağlayacağım. Bu kodları kendi mevcut projenize entegre etmeniz gerekecektir.
+
+ÖNEMLİ NOTLAR:
+
+Testler: Her değişikliği yaptıktan sonra titizlikle test etmeniz kritik. Özellikle yeni API endpoint'leri ve veritabanı değişiklikleri için Postman/Insomnia gibi araçlarla testler yapın. Frontend'de her senaryoyu (başarılı işlem, hata, boş durum, filtreleme, arama, mobil görünüm) manuel olarak kontrol edin.
+Hata Yönetimi: Mevcut app.js dosyanızda genel bir hata yakalayıcı mevcut. Bunu daha kullanıcı dostu hata mesajları döndürecek şekilde iyileştirmeyi unutmayın (toast bildirimleri vb. frontend'de).
+Performans: Büyük veri setleri ile çalışırken veritabanı sorgularının performansını göz önünde bulundurun. İndeksler ve pagination (sayfalama) bu konuda yardımcı olacaktır.
+Güvenlik: Kullanıcı kimlik doğrulama ve yetkilendirme (JWT) zaten var. Yeni endpoint'lere uygun yetkilendirme middleware'ları eklemeyi unutmayın.
+Kapsamlı Güncelleme Kod Çalışması ve Uygulama Adımları
+Adım 1: Veritabanı Şeması Güncellemeleri
+Bu adımları PostgreSQL veritabanınızda psql veya bir veritabanı yönetim aracı kullanarak uygulayın.
+
+products tablosuna is_active sütunu eklenmesi:
+SQL
+
+ALTER TABLE products
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+-- Mevcut tüm ürünleri aktif olarak işaretle
+UPDATE products SET is_active = TRUE;
+transactions tablosuna transaction_code sütunu eklenmesi:
+SQL
+
+ALTER TABLE transactions
+ADD COLUMN transaction_code VARCHAR(50);
+
+-- transaction_code için benzersiz indeks (opsiyonel ama iyi olur)
+CREATE UNIQUE INDEX ON transactions (transaction_code) WHERE transaction_code IS NOT NULL;
+Neden transaction_code'u NULL olabilecek şekilde başlatıyoruz? Mevcut işlemler için hemen bir kod üretemeyebiliriz. Yeni eklenecek işlemler için kod üretmeye başlayacağız. İleride eski kayıtlara da bir kodlama şeması ile UPDATE çekilebilir.
+Adım 2: Backend (Node.js/Express) Kod Güncellemeleri - app.js
+app.js dosyanızda gerekli kütüphaneleri ve mevcut endpoint'leri göz önünde bulundurarak aşağıdaki değişiklikleri yapın.
+
+A. Yeni Kütüphaneler (Gerekliyse):
+
+PDF oluşturmak için bir kütüphane eklemeniz gerekecek. html-pdf veya pdfkit popüler seçeneklerdir. html-pdf daha kolaydır çünkü HTML şablonundan PDF oluşturur.
+
+JavaScript
+
+// app.js dosyanızın başında:
+// const { createObjectCsvWriter } = require('csv-writer'); // Mevcut
+// const fs = require('fs'); // Mevcut
+const pdf = require('html-pdf'); // HTML'den PDF oluşturmak için (npm install html-pdf)
+const moment = require('moment'); // Tarih biçimlendirme için (npm install moment)
+B. Helper Fonksiyonlar ( transaction_code Oluşturma, Auth Middleware):
+
+app.js içinde veya ayrı bir utils.js dosyasında bu fonksiyonları tanımlayın.
+
+JavaScript
+
+// utils/auth.js veya app.js içinde
+// JWT doğrulaması için mevcut middleware'ınız:
+const authenticateToken = (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    if (!token) {
+        return res.status(401).json({ message: 'Erişim reddedildi. Token yok.' });
+    }
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            console.error('JWT doğrulama hatası:', err.message);
+            return res.status(403).json({ message: 'Geçersiz token.' });
+        }
+        req.user = user;
+        next();
+    });
+};
+
+// utils/transactionHelpers.js veya app.js içinde
+async function generateTransactionCode(type) {
+    const today = moment().format('YYYYMMDD');
+    const prefix = type === 'Giriş' ? 'GIR' : (type === 'Çıkış' ? 'CIK' : 'DUZ'); // Düzeltme için DUZ
+    let sequence = 1;
+
+    // En son transaction code'u bul ve sequence'ı artır
+    try {
+        const result = await pool.query(
+            `SELECT transaction_code FROM transactions WHERE transaction_code LIKE $1 || '%' ORDER BY transaction_code DESC LIMIT 1`,
+            [`${prefix}-${today}`]
+        );
+
+        if (result.rows.length > 0) {
+            const lastCode = result.rows[0].transaction_code;
+            const lastSequence = parseInt(lastCode.split('-')[2]);
+            sequence = lastSequence + 1;
+        }
+    } catch (error) {
+        console.error('Transaction code oluşturma hatası:', error);
+        // Hata durumunda bile devam etmeye çalış, belki varsayılan 1 ile
+    }
+    return `${prefix}-${today}-${String(sequence).padStart(4, '0')}`;
+}
+C. Mal Kabul (Giriş) Endpoint Güncellemesi:
+
+POST /api/transactions endpoint'i.
+
+JavaScript
+
+// Mevcut app.post('/api/transactions', authenticateToken, async (req, res) => { ... }); bloğunu bulun
+app.post('/api/transactions', authenticateToken, async (req, res, next) => {
+    const { product_id, company_id, type, quantity, notes } = req.body;
+    const user_id = req.user.id;
+
+    if (!product_id || !type || !quantity || quantity <= 0) {
+        return res.status(400).json({ message: 'Ürün, tip ve miktar zorunludur ve miktar sıfırdan büyük olmalıdır.' });
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN');
+
+        // Ürünün varlığını kontrol et
+        const productRes = await client.query('SELECT * FROM products WHERE id = $1', [product_id]);
+        if (productRes.rows.length === 0) {
+            throw new Error('Ürün bulunamadı.');
+        }
+
+        let newStock = productRes.rows[0].current_stock;
+        let oldStock = newStock;
+        const transactionCode = await generateTransactionCode(type); // Yeni: İşlem kodu oluştur
+
+        if (type === 'Giriş') {
+            newStock += quantity;
+        } else if (type === 'Çıkış') {
+            if (newStock < quantity) {
+                throw new Error('Yeterli stok bulunmamaktadır.');
+            }
+            newStock -= quantity;
+        } else {
+            throw new Error('Geçersiz işlem tipi.');
+        }
+
+        // transaction_code'u sorguya ekle
+        const transactionInsertQuery = `
+            INSERT INTO transactions (product_id, company_id, user_id, type, quantity, notes, transaction_code)
+            VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *;
+        `;
+        const transactionRes = await client.query(transactionInsertQuery, [
+            product_id,
+            // company_id: Eğer "Kendi Üretimimiz" seçildiyse frontend'den NULL olarak gelir,
+            // veya hiç gönderilmezse backend'de NULL olarak kalır.
+            // PostgreSQL'de integer sütunları varsayılan olarak NULL kabul edebilir.
+            company_id || null, // company_id yoksa null gönder
+            user_id,
+            type,
+            quantity,
+            notes,
+            transactionCode // Yeni eklenen transaction_code
+        ]);
+
+        const newTransaction = transactionRes.rows[0];
+
+        // Stok güncellemesi
+        await client.query('UPDATE products SET current_stock = $1 WHERE id = $2', [newStock, product_id]);
+
+        // Audit log kaydı (product için)
+        await client.query(
+            `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, old_value, new_value, user_username)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                user_id,
+                'UPDATE', // Stok güncelleme bir UPDATE olarak loglanır
+                'products',
+                product_id,
+                { current_stock: oldStock },
+                { current_stock: newStock },
+                req.user.username // JWT'den gelen kullanıcı adı
+            ]
+        );
+
+        // Audit log kaydı (transaction için) - opsiyonel ama iyi bir denetim için
+        await client.query(
+            `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, old_value, new_value, user_username)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                user_id,
+                'CREATE',
+                'transactions',
+                newTransaction.id,
+                null, // Yeni kayıt olduğu için old_value null
+                newTransaction, // Tüm yeni işlem kaydını logla
+                req.user.username
+            ]
+        );
+
+
+        await client.query('COMMIT');
+        res.status(201).json(newTransaction);
+    } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('İşlem hatası:', error.message);
+        next(error); // Hata yakalayıcıya gönder
+    } finally {
+        client.release();
+    }
+});
+D. Ürün Güncelleme (Pasifleştirme) ve Silme Endpoint'i:
+
+Mevcut PUT /api/products/:id ve DELETE /api/products/:id endpoint'lerini güncelleyin.
+
+JavaScript
+
+// Mevcut PUT /api/products/:id bloğunu bulun
+app.put('/api/products/:id', authenticateToken, async (req, res, next) => {
+    const { id } = req.params;
+    const { name, unit, current_stock, is_active } = req.body; // is_active de eklendi
+    const user_id = req.user.id;
+    const oldProductRes = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+
+    if (oldProductRes.rows.length === 0) {
+        return res.status(404).json({ message: 'Ürün bulunamadı.' });
+    }
+    const oldProduct = oldProductRes.rows[0];
+
+    // Güncelleme sorgusu
+    const updateQuery = `
+        UPDATE products
+        SET name = $1, unit = $2, current_stock = $3, is_active = $4
+        WHERE id = $5
+        RETURNING *;
+    `;
+    try {
+        const result = await pool.query(updateQuery, [name, unit, current_stock, is_active, id]); // is_active eklendi
+        const updatedProduct = result.rows[0];
+
+        // Audit log kaydı
+        await pool.query(
+            `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, old_value, new_value, user_username)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                user_id,
+                'UPDATE',
+                'products',
+                id,
+                { name: oldProduct.name, unit: oldProduct.unit, current_stock: oldProduct.current_stock, is_active: oldProduct.is_active }, // is_active eklendi
+                { name: updatedProduct.name, unit: updatedProduct.unit, current_stock: updatedProduct.current_stock, is_active: updatedProduct.is_active }, // is_active eklendi
+                req.user.username
+            ]
+        );
+        res.json(updatedProduct);
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Mevcut DELETE /api/products/:id bloğunu bulun ve aşağıdaki gibi güncelleyin
+app.delete('/api/products/:id', authenticateToken, async (req, res, next) => {
+    const { id } = req.params;
+    const user_id = req.user.id; // Silme işlemini yapan kullanıcıyı loglamak için
+
+    try {
+        const productRes = await pool.query('SELECT current_stock FROM products WHERE id = $1', [id]);
+        if (productRes.rows.length === 0) {
+            return res.status(404).json({ message: 'Ürün bulunamadı.' });
+        }
+
+        const currentStock = productRes.rows[0].current_stock;
+
+        // Ürünün stoğu 0'dan büyükse veya herhangi bir işlem görmüşse silinemez
+        const transactionCountRes = await pool.query('SELECT COUNT(*) FROM transactions WHERE product_id = $1', [id]);
+        const transactionCount = parseInt(transactionCountRes.rows[0].count);
+
+        if (currentStock > 0 || transactionCount > 0) {
+            // Sadece pasif hale getirme veya hata döndürme
+            // Eğer "pasif hale getir" butonu var ise, bu uyarıyı göstermeye gerek kalmaz.
+            // Ancak direkt DELETE isteği gelirse bu kontrol önemli.
+            return res.status(400).json({
+                message: 'Ürün silinemez. Stokta miktarı bulunmaktadır veya geçmişte işlem görmüştür. Lütfen ürünü pasif hale getirin.'
+            });
+        }
+
+        const oldProductRes = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+        const oldProduct = oldProductRes.rows[0];
+
+        // Ürünü sil
+        await pool.query('DELETE FROM products WHERE id = $1', [id]);
+
+        // Audit log kaydı
+        await pool.query(
+            `INSERT INTO audit_logs (user_id, action_type, table_name, record_id, old_value, new_value, user_username)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+            [
+                user_id,
+                'DELETE',
+                'products',
+                id,
+                oldProduct, // Silinen ürünün tüm detaylarını logla
+                null, // Yeni değer null
+                req.user.username
+            ]
+        );
+        res.status(204).send(); // No Content
+    } catch (error) {
+        next(error);
+    }
+});
+E. Raporlar Endpoint'i (/api/reports/transactions)
+
+Bu, en karmaşık kısım. Tüm filtreleri ve aramayı destekleyen bir endpoint.
+
+JavaScript
+
+app.get('/api/reports/transactions', authenticateToken, async (req, res, next) => {
+    const {
+        startDate,
+        endDate,
+        type,
+        userId,
+        companyId,
+        productId,
+        searchQuery
+    } = req.query;
+
+    let query = `
+        SELECT
+            t.id AS transaction_id,
+            t.transaction_code,
+            t.transaction_date,
+            t.type AS transaction_type,
+            t.quantity,
+            t.notes AS transaction_notes,
+            p.name AS product_name,
+            p.unit AS product_unit,
+            c.name AS company_name,
+            u.username AS user_username,
+            a.action_type AS audit_action_type,
+            a.old_value AS audit_old_value,
+            a.new_value AS audit_new_value
+        FROM
+            transactions t
+        LEFT JOIN
+            products p ON t.product_id = p.id
+        LEFT JOIN
+            companies c ON t.company_id = c.id
+        LEFT JOIN
+            users u ON t.user_id = u.id
+        LEFT JOIN
+            audit_logs a ON a.table_name = 'transactions' AND a.record_id = t.id AND a.action_type = 'UPDATE' AND a.timestamp BETWEEN t.transaction_date - INTERVAL '1 second' AND t.transaction_date + INTERVAL '1 hour'
+        WHERE 1=1
+    `;
+    const values = [];
+    let paramIndex = 1;
+
+    if (startDate) {
+        query += ` AND t.transaction_date >= $${paramIndex++}`;
+        values.push(moment(startDate).startOf('day').toISOString());
+    }
+    if (endDate) {
+        query += ` AND t.transaction_date <= $${paramIndex++}`;
+        values.push(moment(endDate).endOf('day').toISOString());
+    }
+    if (type && type !== 'Tümü') {
+        query += ` AND t.type = $${paramIndex++}`;
+        values.push(type);
+    }
+    if (userId && userId !== 'Tümü') {
+        query += ` AND t.user_id = $${paramIndex++}`;
+        values.push(parseInt(userId));
+    }
+    if (companyId && companyId !== 'Tümü') {
+        // "Kendi Üretimimiz / Firma Yok" senaryosu için
+        if (companyId === 'null') {
+            query += ` AND t.company_id IS NULL`;
+        } else {
+            query += ` AND t.company_id = $${paramIndex++}`;
+            values.push(parseInt(companyId));
+        }
+    }
+    if (productId && productId !== 'Tümü') {
+        query += ` AND t.product_id = $${paramIndex++}`;
+        values.push(parseInt(productId));
+    }
+    if (searchQuery) {
+        const searchPattern = `%${searchQuery.toLowerCase()}%`;
+        query += `
+            AND (
+                LOWER(t.transaction_code) ILIKE $${paramIndex} OR
+                LOWER(p.name) ILIKE $${paramIndex} OR
+                LOWER(c.name) ILIKE $${paramIndex} OR
+                LOWER(u.username) ILIKE $${paramIndex} OR
+                LOWER(t.notes) ILIKE $${paramIndex}
+            )`;
+        values.push(searchPattern);
+        paramIndex++;
+    }
+
+    query += ` ORDER BY t.transaction_date DESC;`;
+
+    try {
+        const { rows } = await pool.query(query, values);
+
+        // Düzeltmeleri daha anlamlı hale getirme
+        const formattedRows = rows.map(row => {
+            let notes = row.transaction_notes;
+            if (row.audit_action_type === 'UPDATE' && row.audit_old_value && row.audit_new_value) {
+                let changeDetails = [];
+                // Sadece miktar değişimi için örnek:
+                if (row.audit_old_value.quantity !== undefined && row.audit_new_value.quantity !== undefined) {
+                    changeDetails.push(`Miktar: ${row.audit_old_value.quantity} -> ${row.audit_new_value.quantity}`);
+                }
+                if (row.audit_old_value.notes !== undefined && row.audit_new_value.notes !== undefined && row.audit_old_value.notes !== row.audit_new_value.notes) {
+                    changeDetails.push(`Not: "${row.audit_old_value.notes || ''}" -> "${row.audit_new_value.notes || ''}"`);
+                }
+                if (changeDetails.length > 0) {
+                    notes = (notes ? notes + ' - ' : '') + `Düzeltme: (${changeDetails.join(', ')})`;
+                }
+            }
+            return {
+                ...row,
+                transaction_notes: notes,
+                transaction_date: moment(row.transaction_date).format('DD.MM.YYYY HH:mm:ss')
+            };
+        });
+
+        res.json(formattedRows);
+    } catch (error) {
+        console.error('Rapor çekme hatası:', error);
+        next(error);
+    }
+});
+F. Firma Arama Endpoint'i (/api/companies/search)
+
+companies tablosunda isim ve vergi numarasına göre arama.
+
+JavaScript
+
+app.get('/api/companies/search', authenticateToken, async (req, res, next) => {
+    const { query: searchQuery } = req.query; // 'query' parametresini kullan
+
+    if (!searchQuery) {
+        return res.json([]); // Arama sorgusu yoksa boş dizi döndür
+    }
+
+    try {
+        const searchPattern = `%${searchQuery.toLowerCase()}%`;
+        const { rows } = await pool.query(
+            `SELECT id, name, tax_number FROM companies
+             WHERE LOWER(name) ILIKE $1 OR LOWER(tax_number) ILIKE $1
+             ORDER BY name ASC LIMIT 10`, // İlk 10 sonucu getir (autocomplete için)
+            [searchPattern]
+        );
+        res.json(rows);
+    } catch (error) {
+        console.error('Firma arama hatası:', error);
+        next(error);
+    }
+});
+G. Rapor PDF Çıktısı Endpoint'i (Örnek)
+
+Bu kompleks bir konudur ve html-pdf kullanarak örnek bir şablon oluşturulmuştur.
+
+JavaScript
+
+app.get('/api/reports/transactions/pdf', authenticateToken, async (req, res, next) => {
+    const {
+        startDate,
+        endDate,
+        type,
+        userId,
+        companyId,
+        productId,
+        searchQuery
+    } = req.query;
+
+    // Önce yukarıdaki /api/reports/transactions endpoint'i gibi veriyi çek
+    let query = `
+        SELECT
+            t.id AS transaction_id,
+            t.transaction_code,
+            t.transaction_date,
+            t.type AS transaction_type,
+            t.quantity,
+            t.notes AS transaction_notes,
+            p.name AS product_name,
+            p.unit AS product_unit,
+            c.name AS company_name,
+            u.username AS user_username,
+            a.action_type AS audit_action_type,
+            a.old_value AS audit_old_value,
+            a.new_value AS audit_new_value
+        FROM
+            transactions t
+        LEFT JOIN
+            products p ON t.product_id = p.id
+        LEFT JOIN
+            companies c ON t.company_id = c.id
+        LEFT JOIN
+            users u ON t.user_id = u.id
+        LEFT JOIN
+            audit_logs a ON a.table_name = 'transactions' AND a.record_id = t.id AND a.action_type = 'UPDATE' AND a.timestamp BETWEEN t.transaction_date - INTERVAL '1 second' AND t.transaction_date + INTERVAL '1 hour'
+        WHERE 1=1
+    `;
+    const values = [];
+    let paramIndex = 1;
+
+    if (startDate) {
+        query += ` AND t.transaction_date >= $${paramIndex++}`;
+        values.push(moment(startDate).startOf('day').toISOString());
+    }
+    if (endDate) {
+        query += ` AND t.transaction_date <= $${paramIndex++}`;
+        values.push(moment(endDate).endOf('day').toISOString());
+    }
+    if (type && type !== 'Tümü') {
+        query += ` AND t.type = $${paramIndex++}`;
+        values.push(type);
+    }
+    if (userId && userId !== 'Tümü') {
+        query += ` AND t.user_id = $${paramIndex++}`;
+        values.push(parseInt(userId));
+    }
+    if (companyId && companyId !== 'Tümü') {
+        if (companyId === 'null') {
+            query += ` AND t.company_id IS NULL`;
+        } else {
+            query += ` AND t.company_id = $${paramIndex++}`;
+            values.push(parseInt(companyId));
+        }
+    }
+    if (productId && productId !== 'Tümü') {
+        query += ` AND t.product_id = $${paramIndex++}`;
+        values.push(parseInt(productId));
+    }
+    if (searchQuery) {
+        const searchPattern = `%${searchQuery.toLowerCase()}%`;
+        query += `
+            AND (
+                LOWER(t.transaction_code) ILIKE $${paramIndex} OR
+                LOWER(p.name) ILIKE $${paramIndex} OR
+                LOWER(c.name) ILIKE $${paramIndex} OR
+                LOWER(u.username) ILIKE $${paramIndex} OR
+                LOWER(t.notes) ILIKE $${paramIndex}
+            )`;
+        values.push(searchPattern);
+        paramIndex++;
+    }
+
+    query += ` ORDER BY t.transaction_date DESC;`;
+
+    try {
+        const { rows } = await pool.query(query, values);
+
+        const formattedRows = rows.map(row => {
+            let notes = row.transaction_notes;
+            if (row.audit_action_type === 'UPDATE' && row.audit_old_value && row.audit_new_value) {
+                let changeDetails = [];
+                if (row.audit_old_value.quantity !== undefined && row.audit_new_value.quantity !== undefined) {
+                    changeDetails.push(`Miktar: ${row.audit_old_value.quantity} -> ${row.audit_new_value.quantity}`);
+                }
+                if (row.audit_old_value.notes !== undefined && row.audit_new_value.notes !== undefined && row.audit_old_value.notes !== row.audit_new_value.notes) {
+                    changeDetails.push(`Not: "${row.audit_old_value.notes || ''}" -> "${row.audit_new_value.notes || ''}"`);
+                }
+                if (changeDetails.length > 0) {
+                    notes = (notes ? notes + ' - ' : '') + `Düzeltme: (${changeDetails.join(', ')})`;
+                }
+            }
+            return {
+                ...row,
+                transaction_notes: notes,
+                transaction_date: moment(row.transaction_date).format('DD.MM.YYYY HH:mm:ss')
+            };
+        });
+
+        // PDF şablonu oluşturma
+        let htmlContent = `
+            <!DOCTYPE html>
+            <html lang="tr">
+            <head>
+                <meta charset="UTF-8">
+                <title>Günlük İşlem Raporu</title>
+                <style>
+                    body { font-family: 'Arial', sans-serif; font-size: 10px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background-color: #f2f2f2; }
+                    h1 { text-align: center; font-size: 16px; }
+                    .footer { margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; text-align: center; }
+                    .signature-area { display: flex; justify-content: space-around; margin-top: 40px; }
+                    .signature-box { width: 45%; text-align: center; margin-bottom: 20px; }
+                    .signature-line { border-bottom: 1px solid #000; margin-bottom: 5px; width: 80%; margin: 0 auto; }
+                    .report-meta { font-size: 10px; margin-bottom: 20px; text-align: right;}
+                </style>
+            </head>
+            <body>
+                <h1>Begeç Asansör - Günlük İşlem Raporu</h1>
+                <div class="report-meta">
+                    <p>Rapor Tarihi: ${moment().format('DD.MM.YYYY HH:mm')}</p>
+                    <p>Oluşturan Kullanıcı: ${req.user.username}</p>
+                    <p>Tarih Aralığı: ${startDate ? moment(startDate).format('DD.MM.YYYY') : 'Tümü'} - ${endDate ? moment(endDate).format('DD.MM.YYYY') : 'Tümü'}</p>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>İşlem No</th>
+                            <th>Tarih Saat</th>
+                            <th>Tip</th>
+                            <th>Ürün Adı</th>
+                            <th>Miktar</th>
+                            <th>Birim</th>
+                            <th>Firma</th>
+                            <th>Kullanıcı</th>
+                            <th>Notlar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${formattedRows.map(row => `
+                            <tr>
+                                <td>${row.transaction_code || '-'}</td>
+                                <td>${row.transaction_date}</td>
+                                <td>${row.transaction_type}</td>
+                                <td>${row.product_name}</td>
+                                <td>${row.quantity}</td>
+                                <td>${row.product_unit}</td>
+                                <td>${row.company_name || 'Kendi Üretimi'}</td>
+                                <td>${row.user_username}</td>
+                                <td>${row.transaction_notes || '-'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+
+                <div class="signature-area">
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p>Kontrol Eden (Adı Soyadı)</p>
+                        <p>Unvanı: </p>
+                        <p>Tarih: </p>
+                        <p>İmza: </p>
+                    </div>
+                    <div class="signature-box">
+                        <div class="signature-line"></div>
+                        <p>Onaylayan (Adı Soyadı)</p>
+                        <p>Unvanı: </p>
+                        <p>Tarih: </p>
+                        <p>İmza: </p>
+                    </div>
+                </div>
+
+                <div class="footer">
+                    <p>Begeç Asansör Stok Takip Sistemi Raporu</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        const options = {
+            format: 'A4',
+            orientation: 'portrait',
+            border: '10mm',
+            footer: {
+                height: "15mm",
+                contents: '<div style="text-align: center; font-size: 8px;">Sayfa {{page}} / {{pages}}</div>'
+            }
+        };
+
+        pdf.create(htmlContent, options).toBuffer(function(err, buffer) {
+            if (err) return next(err);
+            res.setHeader('Content-Type', 'application/pdf');
+            res.setHeader('Content-Disposition', 'attachment; filename="gunluk_islem_raporu.pdf"');
+            res.send(buffer);
+        });
+
+    } catch (error) {
+        console.error('PDF rapor oluşturma hatası:', error);
+        next(error);
+    }
+});
+Adım 3: Frontend (HTML/JavaScript) Kod Güncellemeleri - index.html
+index.html dosyanızdaki mevcut showPage fonksiyonlarını, event listener'ları ve HTML yapılarını aşağıdaki mantıkla güncelleyin.
+
+A. HTML Yapısı Güncellemeleri:
+
+Sidebar Navigasyon: "Raporlar" için yeni bir menü öğesi ekleyin.
+HTML
+
+<a href="#reports" class="flex items-center p-3 text-sm text-gray-300 hover:bg-secondary-light-color rounded-md transition duration-200">
+    <i class="fas fa-chart-line mr-3"></i> Raporlar
+</a>
+Mal Kabul Formu (Transaction Page): Firma seçim alanını güncelleyin. Autocomplete ve "Kendi Üretimimiz" seçeneği için JavaScript dinamik olarak dolduracak.
+HTML
+
+<div class="mb-4">
+    <label for="transactionCompany" class="block text-gray-700 text-sm font-bold mb-2">Firma:</label>
+    <input type="text" id="transactionCompanySearch" placeholder="Firma Adı veya Vergi No ile Ara"
+           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+    <select id="transactionCompany" class="mt-2 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+        <option value="">-- Firma Seçin veya Kendi Üretimimiz --</option>
+        <option value="null">Kendi Üretimimiz / Firma Yok</option>
+        </select>
+    <button id="addNewCompanyBtn" class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">Yeni Firma Ekle</button>
+</div>
+Ürün Yönetimi Tablosu: Sil butonu yerine "Pasif/Aktif" butonu ve durum göstergesi.
+HTML
+
+<td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <button onclick="editProduct(this.dataset.productId)" data-product-id="${product.id}" class="text-indigo-600 hover:text-indigo-900 mr-2">Düzenle</button>
+    <button onclick="toggleProductActiveStatus(this.dataset.productId, ${product.is_active})" data-product-id="${product.id}"
+        class="text-blue-600 hover:text-blue-900 ${product.is_active ? 'bg-yellow-100' : 'bg-green-100'} px-2 py-1 rounded">
+        ${product.is_active ? 'Pasifleştir' : 'Aktifleştir'}
+    </button>
+    <button onclick="deleteProductIfAllowed(${product.id})" data-product-id="${product.id}" class="text-red-600 hover:text-red-900 ml-2 ${product.current_stock > 0 || hasTransactions(product.id) ? 'hidden' : ''}">Sil</button>
+</td>
+<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+    <span class="${product.is_active ? 'text-green-600' : 'text-red-600'}">${product.is_active ? 'Aktif' : 'Pasif'}</span>
+</td>
+B. JavaScript Fonksiyon Güncellemeleri (index.html içinde veya ayrı JS dosyalarında)
+
+showPage Güncellemesi:
+
+JavaScript
+
+async function showPage(pageName, params = {}) {
+    const contentDiv = document.getElementById('main-content');
+    contentDiv.innerHTML = ''; // İçeriği temizle
+
+    if (pageName === 'dashboard') {
+        contentDiv.innerHTML = '<h1>Dashboard</h1><p>Hoş geldiniz!</p>';
+        // Dashboard içeriği burada yüklenebilir
+    } else if (pageName === 'products') {
+        await loadProductsPage(contentDiv);
+    } else if (pageName === 'companies') {
+        await loadCompaniesPage(contentDiv);
+    } else if (pageName === 'transactions') {
+        await loadTransactionsPage(contentDiv); // Mal Kabul
+    } else if (pageName === 'reports') { // Yeni raporlar sayfası
+        await loadReportsPage(contentDiv);
+    }
+    // Diğer sayfalar için if/else if blokları
+    adjustLayoutForScreenSize(); // Layout'u ayarla
+}
+loadTransactionsPage Güncellemesi (Firma Seçimi):
+
+JavaScript
+
+async function loadTransactionsPage(container) {
+    container.innerHTML = `
+        <h2 class="text-xl font-bold mb-4">Mal Kabul / Çıkış</h2>
+        <form id="transactionForm" class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <div class="mb-4">
+                <label for="transactionProduct" class="block text-gray-700 text-sm font-bold mb-2">Ürün:</label>
+                <select id="transactionProduct" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <option value="">Ürün Seçin</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="transactionType" class="block text-gray-700 text-sm font-bold mb-2">İşlem Tipi:</label>
+                <select id="transactionType" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                    <option value="Giriş">Giriş (Mal Kabul)</option>
+                    <option value="Çıkış">Çıkış</option>
+                </select>
+            </div>
+            <div class="mb-4">
+                <label for="transactionQuantity" class="block text-gray-700 text-sm font-bold mb-2">Miktar:</label>
+                <input type="number" id="transactionQuantity" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" min="1" required>
+            </div>
+            <div class="mb-4">
+                <label for="transactionCompany" class="block text-gray-700 text-sm font-bold mb-2">Firma:</label>
+                <input type="text" id="transactionCompanySearch" placeholder="Firma Adı veya Vergi No ile Ara"
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                <select id="transactionCompany" class="mt-2 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="">-- Firma Seçin --</option>
+                    <option value="null">Kendi Üretimimiz / Firma Yok</option>
+                    </select>
+                <button type="button" id="addNewCompanyBtn" class="mt-2 bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-sm">Yeni Firma Ekle</button>
+            </div>
+            <div class="mb-4">
+                <label for="transactionNotes" class="block text-gray-700 text-sm font-bold mb-2">Notlar (Opsiyonel):</label>
+                <textarea id="transactionNotes" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline rows="3"></textarea>
+            </div>
+            <div class="flex items-center justify-between">
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    İşlemi Kaydet
+                </button>
+            </div>
+        </form>
+    `;
+
+    // Ürünleri ve firmaları yükle (API'den)
+    await fetchProductsForDropdown();
+    await setupCompanySearchAndDropdown(); // Yeni fonksiyon
+    // Form submit listener
+    document.getElementById('transactionForm').addEventListener('submit', handleTransactionSubmit);
+}
+
+async function setupCompanySearchAndDropdown() {
+    const companySearchInput = document.getElementById('transactionCompanySearch');
+    const companySelect = document.getElementById('transactionCompany');
+    const addNewCompanyBtn = document.getElementById('addNewCompanyBtn');
+
+    let searchTimeout;
+
+    companySearchInput.addEventListener('input', () => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(async () => {
+            const query = companySearchInput.value.trim();
+            companySelect.innerHTML = '<option value="">-- Firma Seçin --</option><option value="null">Kendi Üretimimiz / Firma Yok</option>';
+            if (query.length > 2) { // 2 karakterden sonra ara
+                try {
+                    const response = await fetch(`<span class="math-inline">\{API\_URL\}/companies/<119\>search?query\=</span>{encodeURIComponent(query)}`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    if (!response.ok) throw new Error('Firma arama hatası.');
+                    const companies = await response.json();
+                    companies.forEach(company => {
+                        const option = document.createElement('option');
+                        option.value = company.id;
+                        option.textContent = `<span class="math-inline">\{company\.name\} \(</span>{company.tax_number || 'Vergi No Yok'})`;
+                        companySelect.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error('Firma arama hatası:', error);
+                    showToast('Firma aranırken bir hata oluştu.', 'error');
+                }
+            }
+        }, 300); // 300ms gecikme
+    });
+
+    // Yeni firma ekleme butonu listener'ı
+    addNewCompanyBtn.addEventListener('click', () => {
+        showToast('Yeni firma ekleme formu açılacak (geliştirme aşamasında).', 'info');
+        // Burada yeni firma ekleme modalı/sayfası açma mantığı gelebilir
+    });
+}
+
+// handleTransactionSubmit içinde company_id gönderme mantığı:
+async function handleTransactionSubmit(event) {
+    event.preventDefault();
+    const productId = document.getElementById('transactionProduct').value;
+    const type = document.getElementById('transactionType').value;
+    const quantity = parseInt(document.getElementById('transactionQuantity').value);
+    let companyId = document.getElementById('transactionCompany').value;
+    const notes = document.getElementById('transactionNotes').value;
+
+    // "Kendi Üretimimiz / Firma Yok" seçeneği için companyId'yi null yap
+    if (companyId === "null" || companyId === "") {
+        companyId = null;
+    } else {
+        companyId = parseInt(companyId); // integer'a dönüştür
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/transactions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ product_id: productId, company_id: companyId, type, quantity, notes })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'İşlem sırasında bir hata oluştu.');
+        }
+
+        const data = await response.json();
+        showToast('İşlem başarıyla kaydedildi!', 'success');
+        document.getElementById('transactionForm').reset(); // Formu sıfırla
+        // Opsiyonel: Stok miktarını anında güncellemek için ürünleri yeniden yükle
+        // await fetchProducts();
+    } catch (error) {
+        console.error('İşlem kaydetme hatası:', error);
+        showToast(error.message, 'error');
+    }
+}
+loadProductsPage Güncellemesi (Pasifleştirme/Aktifleştirme):
+
+JavaScript
+
+async function loadProductsPage(container) {
+    container.innerHTML = `
+        <h2 class="text-xl font-bold mb-4">Ürün Yönetimi</h2>
+        <button id="addNewProductBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4">Yeni Ürün Ekle</button>
+        <div class="overflow-x-auto relative shadow-md sm:rounded-lg">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th scope="col" class="py-3 px-6">ID</th>
+                        <th scope="col" class="py-3 px-6">Ürün Adı</th>
+                        <th scope="col" class="py-3 px-6">Birim</th>
+                        <th scope="col" class="py-3 px-6">Stok</th>
+                        <th scope="col" class="py-3 px-6">Durum</th> <th scope="col" class="py-3 px-6 text-right">Eylemler</th>
+                    </tr>
+                </thead>
+                <tbody id="productsTableBody">
+                    </tbody>
+            </table>
+        </div>
+        `;
+
+    document.getElementById('addNewProductBtn').addEventListener('click', () => openProductModal());
+    await fetchProducts(); // Ürünleri getir ve tabloya doldur
+}
+
+async function fetchProducts() {
+    try {
+        const response = await fetch(`${API_URL}/products`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (!response.ok) throw new Error('Ürünler getirilemedi.');
+        const products = await response.json();
+        const productsTableBody = document.getElementById('productsTableBody');
+        productsTableBody.innerHTML = '';
+        products.forEach(product => {
+            const row = document.createElement('tr');
+            row.className = 'bg-white border-b hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="py-4 px-6"><span class="math-inline">\{product\.id\}</td\>
+<td class="py-4 px-6">{product.name}</td>
+<td class="py-4 px-6">product.unit</td><tdclass="py−4px−6">{product.current_stock}</td>
+<td class="py-4 px-6">
+<span class="${product.is_active ? 'text-green-600' : 'text-red-600'} font-semibold">
+product.is 
+a
+​
+ ctive? 
+′
+ Aktif 
+′
+ : 
+′
+ Pasif 
+′
+ </span></td><tdclass="py−4px−6text−right"><buttononclick="editProduct({product.id})" class="text-indigo-600 hover:text-indigo-900 mr-2">Düzenle</button>
+<button onclick="toggleProductActiveStatus(${product.id}, ${product.is_active})"
+class="text-blue-600 hover:text-blue-900 ${product.is_active ? 'bg-yellow-100' : 'bg-green-100'} px-2 py-1 rounded">
+${product.is_active ? 'Pasifleştir' : 'Aktifleştir'}
+</button>
+${product.current_stock === 0 && !product.has_transactions_in_past ? // has_transactions_in_past backend'den gelmeli
+<button onclick="deleteProductIfAllowed(${product.id})" class="text-red-600 hover:text-red-900 ml-2">Sil</button> : ''}
+</td>
+`;
+productsTableBody.appendChild(row);
+});
+} catch (error) {
+console.error('Ürünleri yükleme hatası:', error);
+showToast('Ürünler yüklenirken bir hata oluştu.', 'error');
+}
+}
+
+async function toggleProductActiveStatus(productId, currentStatus) {
+    if (!confirm(`Bu ürünü ${currentStatus ? 'pasif' : 'aktif'} hale getirmek istediğinize emin misiniz?`)) {
+        return;
+    }
+    try {
+        const response = await fetch(`<span class="math-inline">\{API\_URL\}/products/</span>{productId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
+            },
+            body: JSON.stringify({ is_active: !currentStatus }) // Sadece is_active'i güncelleyin
+        });
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Ürün durumu güncellenirken hata oluştu.');
+        }
+        showToast('Ürün durumu başarıyla güncellendi.', 'success');
+        await fetchProducts(); // Listeyi yenile
+    } catch (error) {
+        console.error('Ürün durumu güncelleme hatası:', error);
+        showToast(error.message, 'error');
+    }
+}
+
+// `deleteProductIfAllowed` fonksiyonu: Backend'den dönen kurala göre silme.
+async function deleteProductIfAllowed(productId) {
+    if (!confirm("Bu ürünü silmek istediğinize emin misiniz? Bu işlem geri alınamaz.")) {
+        return;
+    }
+    try {
+        const response = await fetch(`<span class="math-inline">\{API\_URL\}/<128\>products/</span>{productId}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || 'Ürün silinirken bir hata oluştu.');
+        }
+        showToast('Ürün başarıyla silindi.', 'success');
+        await fetchProducts(); // Listeyi yenile
+    } catch (error) {
+        console.error('Ürün silme hatası:', error);
+        showToast(error.message, 'error');
+    }
+}
+```
+Yeni Raporlar Sayfası (loadReportsPage):
+
+JavaScript
+
+async function loadReportsPage(container) {
+    container.innerHTML = `
+        <h2 class="text-xl font-bold mb-4">İşlem Raporları</h2>
+        <div class="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label for="reportStartDate" class="block text-gray-700 text-sm font-bold mb-2">Başlangıç Tarihi:</label>
+                    <input type="date" id="reportStartDate" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="reportEndDate" class="block text-gray-700 text-sm font-bold mb-2">Bitiş Tarihi:</label>
+                    <input type="date" id="reportEndDate" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div>
+                    <label for="reportType" class="block text-gray-700 text-sm font-bold mb-2">İşlem Tipi:</label>
+                    <select id="reportType" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="Tümü">Tümü</option>
+                        <option value="Giriş">Giriş</option>
+                        <option value="Çıkış">Çıkış</option>
+                        <option value="Düzeltme">Düzeltme</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="reportUser" class="block text-gray-700 text-sm font-bold mb-2">Kullanıcı:</label>
+                    <select id="reportUser" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="Tümü">Tümü</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="reportCompany" class="block text-gray-700 text-sm font-bold mb-2">Firma:</label>
+                    <input type="text" id="reportCompanySearch" placeholder="Firma Ara"
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="reportCompany" class="mt-2 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="Tümü">Tümü</option>
+                        <option value="null">Kendi Üretimimiz / Firma Yok</option>
+                        </select>
+                </div>
+                <div>
+                    <label for="reportProduct" class="block text-gray-700 text-sm font-bold mb-2">Ürün:</label>
+                    <input type="text" id="reportProductSearch" placeholder="Ürün Ara"
+                           class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                    <select id="reportProduct" class="mt-2 shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="Tümü">Tümü</option>
+                        </select>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label for="reportGlobalSearch" class="block text-gray-700 text-sm font-bold mb-2">Arama (Sipariş No, Ürün, Firma, Kullanıcı, Not):</label>
+                <input type="text" id="reportGlobalSearch" placeholder="Genel Arama Yap..."
+                       class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+            </div>
+            <div class="flex justify-between items-center mt-4">
+                <button id="generateReportBtn" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
+                    Rapor Oluştur
+                </button>
+                <div>
+                    <button id="printReportBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2">
+                        Yazdır
+                    </button>
+                    <button id="downloadPdfBtn" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2">
+                        PDF İndir
+                    </button>
+                    <button id="downloadCsvBtn" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline ml-2">
+                        CSV İndir
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div id="reportResults" class="overflow-x-auto relative shadow-md sm:rounded-lg mt-6">
+            <table class="w-full text-sm text-left text-gray-500">
+                <thead class="text-xs text-gray-700 uppercase bg-gray-50">
+                    <tr>
+                        <th scope="col" class="py-3 px-6">İşlem No</th>
+                        <th scope="col" class="py-3 px-6">Tarih Saat</th>
+                        <th scope="col" class="py-3 px-6">Tip</th>
+                        <th scope="col" class="py-3 px-6">Ürün Adı</th>
+                        <th scope="col" class="py-3 px-6">Miktar</th>
+                        <th scope="col" class="py-3 px-6">Birim</th>
+                        <th scope="col" class="py-3 px-6">Firma</th>
+                        <th scope="col" class="py-3 px-6">Kullanıcı</th>
+                        <th scope="col" class="py-3 px-6">Notlar</th>
+                    </tr>
+                </thead>
+                <tbody id="reportTableBody">
+                    <tr><td colspan="9" class="text-center py-4">Lütfen rapor oluşturmak için filtreleri kullanın.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="toast-container" class="fixed bottom-4 right-4 z-50"></div>
+    `;
+
+    // Kullanıcılar, firmalar, ürünler için dropdownları doldur
+    await populateReportFilters();
+
+    // Event Listeners
+    document.getElementById('generateReportBtn').addEventListener('click', generateReport);
+    document.getElementById('printReportBtn').addEventListener('click', () => printReport('table')); // 'table' HTML içeriğini yazdırır
+    document.getElementById('downloadPdfBtn').addEventListener('click', () => downloadReport('pdf'));
+    document.getElementById('downloadCsvBtn').addEventListener('click', () => downloadReport('csv'));
+
+    // Arama inputları için autocomplete (debounce ile)
+    setupReportAutocomplete('reportCompanySearch', 'companies', 'reportCompany');
+    setupReportAutocomplete('reportProductSearch', 'products', 'reportProduct');
+}
+
+async function populateReportFilters() {
+    // Kullanıcıları doldur
+    try {
+        const usersResponse = await fetch(`${API_URL}/users`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const users = await usersResponse.json();
+        const reportUserSelect = document.getElementById('reportUser');
+        users.forEach(user => {
+            const option = document.createElement('option');
+            option.value = user.id;
+            option.textContent = user.username;
+            reportUserSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Kullanıcıları yüklerken hata:', error);
+        showToast('Kullanıcı listesi yüklenemedi.', 'error');
+    }
+
+    // Firmaları ve Ürünleri doldur (ilk yüklemede autocomplete ile çalışmayabilir, genel liste için)
+    // Eğer autocomplete kullanıyorsanız, buradaki liste başlangıçta boş kalabilir
+    // veya ilk 50 firma/ürün listelenebilir.
+}
+
+let reportSearchTimeout;
+async function setupReportAutocomplete(searchInputId, endpoint, selectId) {
+    const searchInput = document.getElementById(searchInputId);
+    const selectElement = document.getElementById(selectId);
+
+    searchInput.addEventListener('input', () => {
+        clearTimeout(reportSearchTimeout);
+        reportSearchTimeout = setTimeout(async () => {
+            const query = searchInput.value.trim();
+            // "Tümü" seçeneği her zaman kalsın
+            selectElement.innerHTML = `<option value="Tümü">Tümü</option>`;
+            if (selectId === 'reportCompany') {
+                selectElement.innerHTML += `<option value="null">Kendi Üretimimiz / Firma Yok</option>`;
+            }
+
+            if (query.length > 1) { // Daha az karakterle arama
+                try {
+                    const response = await fetch(`<span class="math-inline">\{API\_URL\}/</span>{endpoint}/search?query=${encodeURIComponent(query)}`, {
+                        headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+                    });
+                    if (!response.ok) throw new Error(`${endpoint} arama hatası.`);
+                    const items = await response.json();
+                    items.forEach(item => {
+                        const option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = endpoint === 'companies' ? `<span class="math-inline">\{item\.name\} \(</span>{item.tax_number || 'Vergi No Yok'})` : item.name;
+                        selectElement.appendChild(option);
+                    });
+                } catch (error) {
+                    console.error(`${endpoint} arama hatası:`, error);
+                    showToast(`Filtre için ${endpoint} aranırken bir hata oluştu.`, 'error');
+                }
+            }
+        }, 300);
+    });
+}
+
+
+async function generateReport() {
+    const startDate = document.getElementById('reportStartDate').value;
+    const endDate = document.getElementById('reportEndDate').value;
+    const type = document.getElementById('reportType').value;
+    const userId = document.getElementById('reportUser').value;
+    const companyId = document.getElementById('reportCompany').value;
+    const productId = document.getElementById('reportProduct').value;
+    const searchQuery = document.getElementById('reportGlobalSearch').value.trim();
+
+    const queryParams = new URLSearchParams({
+        startDate,
+        endDate,
+        type,
+        userId,
+        companyId,
+        productId,
+        searchQuery
+    }).toString();
+
+    try {
+        document.getElementById('reportTableBody').innerHTML = '<tr><td colspan="9" class="text-center py-4">Rapor yükleniyor...</td></tr>';
+        const response = await fetch(`<span class="math-inline">\{API\_URL\}/reports/transactions?</span>{queryParams}`, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        if (!response.ok) throw new Error('Rapor verisi alınamadı.');
+        const transactions = await response.json();
+        const reportTableBody = document.getElementById('reportTableBody');
+        reportTableBody.innerHTML = '';
+
+        if (transactions.length === 0) {
+            reportTableBody.innerHTML = '<tr><td colspan="9" class="text-center py-4">Belirtilen filtrelere uygun işlem bulunamadı.</td></tr>';
+            return;
+        }
+
+        transactions.forEach(t => {
+            const row = document.createElement('tr');
+            row.className = 'bg-white border-b hover:bg-gray-50';
+            row.innerHTML = `
+                <td class="py-4 px-6"><span class="math-inline">\{t\.transaction\_code \|\| '\-'\}</td\>
+<td class="py-4 px-6">{t.transaction_date}</td>
+<td class="py-4 px-6">t.transaction 
+t
+​
+ ype</td><tdclass="py−4px−6">{t.product_name}</td>
+<td class="py-4 px-6">t.quantity</td><tdclass="py−4px−6">{t.product_unit}</td>
+<td class="py-4 px-6">t.company 
+n
+​
+ ame∣∣ 
+′
+ Kendi 
+U
+¨
+ retimi 
+′
+ </td><tdclass="py−4px−6">{t.user_username}</td>
+<td class="py-4 px-6">${t.transaction_notes || '-'}</td>
+`;
+reportTableBody.appendChild(row);
+});
+} catch (error) {
+console.error('Rapor oluşturma hatası:', error);
+showToast('Rapor oluşturulurken bir hata oluştu: ' + error.message, 'error');
+}
+}
+
+async function downloadReport(format) {
+    const startDate = document.getElementById('reportStartDate').value;
+    const endDate = document.getElementById('reportEndDate').value;
+    const type = document.getElementById('reportType').value;
+    const userId = document.getElementById('reportUser').value;
+    const companyId = document.getElementById('reportCompany').value;
+    const productId = document.getElementById('reportProduct').value;
+    const searchQuery = document.getElementById('reportGlobalSearch').value.trim();
+
+    const queryParams = new URLSearchParams({
+        startDate,
+        endDate,
+        type,
+        userId,
+        companyId,
+        productId,
+        searchQuery
+    }).toString();
+
+    let url = '';
+    let filename = '';
+    let mimeType = '';
+
+    if (format === 'pdf') {
+        url = `<span class="math-inline">\{API\_URL\}/reports/transactions/pdf?</span>{queryParams}`;
+        filename = `Begec_Asansor_Islem_Raporu_${new Date().toISOString().slice(0,10)}.pdf`;
+        mimeType = 'application/pdf';
+    } else if (format === 'csv') {
+        url = `<span class="math-inline">\{API\_URL\}/reports/transactions/csv?</span>{queryParams}`; // Henüz bu endpoint yok, backend'de eklenecek
+        filename = `Begec_Asansor_Islem_Raporu_${new Date().toISOString().slice(0,10)}.csv`;
+        mimeType = 'text/csv';
+    } else {
+        return;
+    }
+
+    try {
+        showToast(`Rapor ${format.toUpperCase()} olarak hazırlanıyor...`, 'info');
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.message || `Rapor ${format.toUpperCase()} olarak indirilirken bir hata oluştu.`);
+        }
+
+        const blob = await response.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+        showToast(`${format.toUpperCase()} rapor başarıyla indirildi.`, 'success');
+
+    } catch (error) {
+        console.error(`Rapor indirme hatası (${format}):`, error);
+        showToast(error.message, 'error');
+    }
+}
+
+// `printReport` fonksiyonu (sadece ekrandaki tabloyu yazdırmak için)
+function printReport() {
+    const printContent = document.getElementById('reportResults').outerHTML; // Tablonun HTML'ini al
+    const originalBody = document.body.innerHTML;
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+        <html>
+        <head>
+            <title>Begeç Asansör - İşlem Raporu Çıktısı</title>
+            <style>
+                body { font-family: 'Arial', sans-serif; font-size: 12px; margin: 20px; }
+                table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                th { background-color: #f2f2f2; }
+                h1 { text-align: center; font-size: 18px; margin-bottom: 20px; }
+                .signature-area { margin-top: 50px; border-top: 1px solid #eee; padding-top: 20px; display: flex; justify-content: space-around; }
+                .signature-box { width: 45%; text-align: center; margin-bottom: 20px; }
+                .signature-line { border-bottom: 1px solid #000; margin-bottom: 5px; width: 80%; margin: 0 auto; }
+                .report-meta { font-size: 10px; margin-bottom: 20px; text-align: right;}
+            </style>
+        </head>
+        <body>
+            <h1>Begeç Asansör - İşlem Raporu</h1>
+            <div class="report-meta">
+                <p>Rapor Tarihi: ${moment().format('DD.MM.YYYY HH:mm')}</p>
+                <p>Oluşturan Kullanıcı: ${localStorage.getItem('username')}</p>
+                <p>Tarih Aralığı: ${document.getElementById('reportStartDate').value || 'Tümü'} - ${document.getElementById('reportEndDate').value || 'Tümü'}</p>
+            </div>
+            ${printContent}
+            <div class="signature-area">
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <p>Kontrol Eden (Adı Soyadı)</p>
+                    <p>Unvanı: </p>
+                    <p>Tarih: </p>
+                    <p>İmza: </p>
+                </div>
+                <div class="signature-box">
+                    <div class="signature-line"></div>
+                    <p>Onaylayan (Adı Soyadı)</p>
+                    <p>Unvanı: </p>
+                    <p>Tarih: </p>
+                    <p>İmza: </p>
+                </div>
+            </div>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
+}
+```
+Toast Bildirim Fonksiyonu (Genel Hata Yakalayıcı için de kullanılacak):
+showToast fonksiyonu mevcut app.js'deki genel hata yakalayıcının çıktısı yerine kullanıcıya görsel bir bildirim sunmak için kullanılacak.
+
+JavaScript
+
+function showToast(message, type = 'info', duration = 3000) {
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        console.error('Toast container bulunamadı!');
+        alert(message); // Alternatif olarak alert
+        return;
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `flex items-center w-full max-w-xs p-4 mb-4 text-gray-500 bg-white rounded-lg shadow-md
+                       ${type === 'success' ? 'border-green-500 border-l-4' : ''}
+                       ${type === 'error' ? 'border-red-500 border-l-4' : ''}
+                       ${type === 'info' ? 'border-blue-500 border-l-4' : ''}`;
+    toast.innerHTML = `
+        <div class="inline-flex flex-shrink-0 justify-center items-center w-8 h-8 rounded-lg
+                    ${type === 'success' ? 'bg-green-100 text-green-500' : ''}
+                    ${type === 'error' ? 'bg-red-100 text-red-500' : ''}
+                    ${type === 'info' ? 'bg-blue-100 text-blue-500' : ''}">
+            <i class="fas <span class="math-inline">\{type \=\=\= 'success' ? 'fa\-check' \: \(type \=\=\= 'error' ? 'fa\-times' \: 'fa\-info'\)\}"\></i\>
+</div>
+<div class="ml-3 text-sm font-normal">{message}</div>
+<button type="button" class="ml-auto -mx-1.5 -my-1.5 bg-white text-gray-400 hover:text-gray-900 rounded-lg focus:ring-2 focus:ring-gray-300 p-1.5 hover:bg-gray-100 inline-flex h-8 w-8" aria-label="Close">
+<span class="sr-only">Kapat</span>
+<svg class="w-3 h-3" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14">
+<path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/>
+</svg>
+</button>
+`;
+toastContainer.appendChild(toast);
+
+    // Kapatma butonu için event listener
+    toast.querySelector('button').addEventListener('click', () => {
+        toast.remove();
+    });
+
+    setTimeout(() => {
+        toast.remove();
+    }, duration);
+}
+```
+* Bu `showToast` fonksiyonunu `app.js`'deki genel hata yakalayıcıdan (eğer frontend tarafında yakalanabiliyorsa) veya API çağrılarının `catch` bloklarından çağırabilirsiniz.
+C. adjustLayoutForScreenSize İyileştirmesi (Mobil Uyumluluk):
+
+Mevcut fonksiyonunuz iyi durumda, ancak genel CSS'i mobil için daha iyi hale getirmek önemlidir.
+
+HTML Meta Tag: <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"> Bu zaten mevcut ve iyi.
+Tailwind CSS Responsive Sınıfları: Tüm component'lerinizde (formlar, tablolar, butonlar) Tailwind'in md:, lg: gibi responsive sınıflarını aktif olarak kullanın.
+Örnek: grid-cols-1 md:grid-cols-2 lg:grid-cols-3
+Tablolar için overflow-x-auto veya mobil cihazlarda kart görünümüne dönüşen yapılar düşünebilirsiniz.
+Sidebar Mobil Deneyimi: Hamburger menü tıklandığında sidebar'ın üstten aşağı açılması ve sayfanın geri kalanının karartılması (overlay) gibi bir davranış idealdir. Mevcut kodda sidebar-active sınıfı ile overflow: hidden eklenmesi ve overlay oluşturulması düşünülmeli.
+CSS
+
+/* index.html style bloğuna veya ayrı bir CSS dosyasına */
+@media (max-width: 991px) {
+    .sidebar {
+        position: fixed;
+        top: 0;
+        left: -250px; /* Başlangıçta gizli */
+        height: 100%;
+        width: 250px;
+        transition: left 0.3s ease;
+        z-index: 1000;
+        box-shadow: 2px 0 5px rgba(0,0,0,0.2);
+    }
+    .sidebar.open {
+        left: 0;
+    }
+    .main-content-wrapper.sidebar-open {
+        /* Bu sınıf mobil görünümde kullanılmayabilir, overlay ile yönetilir */
+    }
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.5);
+        z-index: 999;
+        display: none; /* Varsayılan olarak gizli */
+    }
+    body.sidebar-active .overlay {
+        display: block;
+    }
+    body.sidebar-active {
+        overflow: hidden; /* Sayfanın kaydırılmasını engelle */
+    }
+}
+index.html body bölümünde:
+
+HTML
+
+<div id="root" class="flex h-screen bg-gray-100">
+    <div id="sidebar" class="sidebar fixed inset-y-0 left-0 w-64 bg-secondary-color text-white flex flex-col z-50 transition-all duration-300 ease-in-out lg:relative lg:translate-x-0 lg:shadow-none">
+        </div>
+    <div id="main-content-wrapper" class="flex-1 flex flex-col overflow-hidden transition-all duration-300 ease-in-out">
+        <header class="flex items-center justify-between p-4 bg-white shadow-md z-40">
+            <button id="hamburger-menu-btn" class="text-gray-600 focus:outline-none lg:hidden">
+                ☰
+            </button>
+            <h1 class="text-xl font-semibold text-gray-800">Begeç Asansör Stok Takip</h1>
+            <div id="user-info-header" class="relative">
+                <button id="userDropdownBtn" class="flex items-center text-gray-600 hover:text-gray-900 focus:outline-none">
+                    <i class="fas fa-user-circle text-2xl mr-2"></i>
+                    <span id="loggedInUsername"></span>
+                </button>
+                <div id="userDropdownMenu" class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 hidden z-50">
+                    <a href="#profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profil</a>
+                    <button id="logoutBtn" class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Çıkış Yap</button>
+                </div>
+            </div>
+        </header>
+        <main id="main-content" class="flex-1 overflow-x-hidden overflow-y-auto p-6"></main>
+    </div>
+    <div id="overlay" class="overlay hidden"></div> </div>
+
+<script>
+    // ... mevcut JS kodları ...
+
+    document.getElementById('hamburger-menu-btn').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const body = document.body;
+
+        sidebar.classList.toggle('open');
+        overlay.classList.toggle('hidden');
+        body.classList.toggle('sidebar-active'); // Overflow hidden için
+    });
+
+    document.getElementById('overlay').addEventListener('click', () => {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+        const body = document.body;
+
+        sidebar.classList.remove('open');
+        overlay.classList.add('hidden');
+        body.classList.remove('sidebar-active');
+    });
+
+    document.getElementById('userDropdownBtn').addEventListener('click', () => {
+        document.getElementById('userDropdownMenu').classList.toggle('hidden');
+    });
+
+    // Sayfa dışına tıklayınca dropdown'ı kapat
+    window.addEventListener('click', function(event) {
+        if (!document.getElementById('userDropdownBtn').contains(event.target) && !document.getElementById('userDropdownMenu').contains(event.target)) {
+            document.getElementById('userDropdownMenu').classList.add('hidden');
+        }
+    });
+
+    // Çıkış yap butonu
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        window.location.href = '#login'; // Login sayfasına yönlendir
+        showPage('login'); // Sayfayı güncelle
+    });
+</script>
+Bu plan, en optimal ve sağlam bir güncelleme için gereken temel kod değişikliklerini ve mantığı içermektedir. Her bir adımı dikkatlice uygulamanız ve test etmeniz, stabil ve profesyonel bir sonuç elde etmenizi sağlayacaktır. Özellikle mobil uyumluluk için UI/UX testlerine önem verin.
+
+Şimdi bu "birkaç saati" bu planı uygulamak ve test etmek için kullanabilirsiniz! Başarılar!
+
+
+Kaynaklar
+
+
+
+
+yok testleri kendi icinde yapip bana api vs indexin son hallerini ver dedim ya en stabil sekilde zaman istersen de vereyim direkt yazmak zorunda degilsin kodu ama ricam once api sonra apiye uygun index seklinde ilerleyelim yani once apiyi bitir emin ol de ki index icin hazirim onay ver diye veriyim onay tabi postgresqlde yapilcak islem varsa bu apiden de once gelir
+
+
+
+
+Düşünme sürecini göster
+Harika bir plan! Bu kapsamlı güncellemeyi adım adım, en stabil ve profesyonel şekilde ilerleyelim.
+
+İlk olarak, veritabanı şemasında yapmamız gereken değişikliklerle başlayalım. Bu değişiklikler, yeni özellikler için gerekli altyapıyı sağlayacak.
+
+Adım 1: PostgreSQL Veritabanı Şeması Güncellemeleri
+Bu SQL komutlarını PostgreSQL veritabanı yönetim aracınızda (örn: psql, DBeaver, pgAdmin) çalıştırın.
+
+products tablosuna is_active sütunu eklenmesi:
+Bu sütun, bir ürünün aktif olup olmadığını belirleyecek. Silmek yerine ürünleri pasif hale getirme mantığımız için gereklidir. Varsayılan olarak TRUE (aktif) olacaktır.
+
+SQL
+
+ALTER TABLE products
+ADD COLUMN is_active BOOLEAN DEFAULT TRUE;
+
+-- Mevcut tüm ürünleri aktif olarak işaretle (eğer zaten TRUE değilse)
+UPDATE products SET is_active = TRUE WHERE is_active IS NULL;
+transactions tablosuna transaction_code sütunu eklenmesi:
+Bu sütun, her işlem için benzersiz, insan tarafından okunabilir bir referans kodu tutacak. Raporlarda ve çıktılarda bu kodu kullanacağız. NULL değerine izin veriyoruz çünkü mevcut kayıtlarda bu kod olmayabilir, ancak yeni kayıtlarda her zaman oluşturulacaktır.
+
+SQL
+
+ALTER TABLE transactions
+ADD COLUMN transaction_code VARCHAR(50);
+
+-- transaction_code için benzersiz indeks ekle (NULL değerleri hariç)
+-- Bu, kodların benzersizliğini garanti eder ve arama performansını artırır.
+CREATE UNIQUE INDEX ON transactions (transaction_code) WHERE transaction_code IS NOT NULL;
+Bu veritabanı değişikliklerini uyguladıktan sonra, backend API koduna geçmeye hazır olacağız.
+
+PostgreSQL veritabanı güncellemelerini tamamladığınızda bana onay verin, böylece backend API koduna geçebiliriz.
+
+
+
+
+
+gecelim
+
+
+
+Düşünme sürecini göster
+Harika! Veritabanı şeması güncellemelerini tamamladığınıza göre, şimdi backend API'mizin kalbi olan app.js dosyasını baştan sona, tüm yeni özellikler ve iyileştirmelerle birlikte hazırlayabiliriz.
+
+Bu kod, daha önce konuştuğumuz tüm noktaları kapsayacak:
+
+Mal Kabulde Firma Opsiyonelliği: transactions tablosundaki company_id artık NULL olabilecek ve frontend'den null değeri gönderilebilecek.
+Ürün Pasifleştirme/Aktifleştirme: Ürünler silinmek yerine is_active durumu ile yönetilecek. Silme işlemi sadece belirli koşullarda mümkün olacak.
+Gelişmiş Raporlama: Kapsamlı filtreleme, arama, PDF ve CSV dışa aktarma yetenekleri eklenecek. audit_logs tablosu düzeltme işlemlerini raporlamada kullanılacak.
+Firma Arama (Autocomplete): Firmaları isim veya vergi numarasına göre aramak için yeni bir endpoint oluşturulacak.
+İşlem Kodları: Her yeni işlem için benzersiz bir transaction_code oluşturulacak.
+Hata Yönetimi ve Audit Logları: Her önemli işlem için audit log kayıtları tutulacak ve genel hata yakalayıcı daha bilgilendirici olacak.
+Aşağıda app.js dosyasının tam ve güncel hali bulunmaktadır. Lütfen mevcut app.js dosyanızın içeriğini bu kod ile tamamen değiştirin.
+
+Kurulum Notu:
+Bu kod html-pdf ve moment kütüphanelerini kullanır. Eğer daha önce yüklemediyseniz, projenizin kök dizininde aşağıdaki komutları çalıştırarak bunları yüklemeniz gerekecektir:
+
+Bash
+
+npm install html-pdf moment
+Güncel app.js (Backend)
+22 May 01:57
+
+Aç
+Önemli Kontrol Listesi:
+
+app.js dosyasını bu kodla tamamen değiştirdiniz mi?
+npm install html-pdf moment komutunu çalıştırdınız mı?
+.env dosyanızdaki veritabanı bağlantı bilgileri (DB_USER, DB_HOST, DB_DATABASE, DB_PASSWORD, DB_PORT) ve JWT_SECRET doğru ve güncel mi?
+API_URL değişkenini frontend kodunuzda (index.html'de) kendi backend URL'nizle (örn: http://localhost:3000/api veya http://192.168.0.218:3000/api) güncellediniz mi? (Bu adım frontend için, ama şimdiden hatırlatıyorum.)
+Bu adımları tamamladıktan sonra, backend sunucunuzu yeniden başlatın. (Örn: node app.js veya nodemon app.js eğer kullanıyorsanız).
+
+Backend'in stabil bir şekilde çalıştığından, tüm API endpoint'lerinin (özellikle yeni olanlar ve güncellenenler) beklendiği gibi yanıt verdiğinden emin olmak için Postman veya Insomnia gibi bir araçla test etmenizi şiddetle tavsiye ederim.
+
+Backend testlerini tamamladığınızda ve her şeyin stabil çalıştığından emin olduğunuzda bana onay verin, böylece frontend (index.html) koduna geçebiliriz.
+
+
+
+
+
+
+app
+JS
+hatta bu guncellemeyi yaparken senden en buyuk ricam sqldeki verilere gore yapman yani iste stock yaziyor sqlde sen unutup apide stock_stock tarzi eklemelerin oluyor bunlar olmasin ayrica su anki api.jss eksik bi dosya sana su anki guncelleri atiyorum bunlarin uzeirne eklemek amacimiz ona gore yani sen yapiyi eksik yapiyorsun bak bu guncel su anki hali
+
+
+
+
+Düşünme sürecini göster
+Harika! Mevcut app.js dosyanızın içeriğini detaylıca inceledim ve üzerine eklemeler yaparak, belirttiğiniz tüm istekleri ve iyileştirmeleri kapsayan tamamen güncellenmiş ve entegre edilmiş bir app.js kodu hazırladım.
+
+Önemli Değişiklikler ve Düzeltmeler:
+
+stock vs current_stock: Veritabanı şemanızdaki products tablosunda stok miktarı için stock sütunu kullanıldığını gördüm. Önceki cevabımda current_stock olarak belirtmiştim, bu düzeltildi. Artık tüm API'ler ve sorgular stock sütununu kullanıyor.
+transaction_type vs type: transactions tablosunda işlem tipi için type sütunu kullanıldığını gördüm (type VARCHAR(20) NOT NULL CHECK (type IN ('in', 'out', 'adjustment'))). Tüm API'ler ve mantık buna göre güncellendi.
+password_hash: users tablosunda şifre sütununun password_hash olarak adlandırıldığını fark ettim. Bu da tüm ilgili kullanıcı yönetimi API'lerinde düzeltildi.
+transaction_code Entegrasyonu: Yeni transaction_code sütunu transactions tablosuna eklendi ve her yeni işlem (giriş, çıkış, düzeltme) için otomatik olarak benzersiz bir kod üretilip kaydediliyor.
+Firma Opsiyonelliği (Mal Kabul): POST /api/transactions endpoint'i, company_id'nin null olarak gelmesine izin verecek şekilde ayarlandı.
+Ürün Silme/Pasifleştirme Mantığı: DELETE /api/products/:id endpoint'i, ürüne bağlı hareket olup olmadığına göre ürünü ya tamamen siliyor ya da is_active durumunu FALSE yaparak pasif hale getiriyor.
+Gelişmiş Raporlama (/api/reports/transactions):
+Tarih aralığı, işlem tipi, kullanıcı, firma, ürün, kategori ve genel arama filtreleri eklendi.
+Sorgu, products, companies, users ve categories tablolarını birleştirerek detaylı rapor verisi sağlıyor.
+Düzeltme (adjustment) işlemleri için audit_logs tablosundan eski ve yeni stok değerleri çekilerek rapora ekleniyor.
+PDF ve CSV Dışa Aktarma: /api/reports/transactions/pdf ve /api/reports/transactions/csv endpoint'leri eklendi. Bu endpoint'ler filtrelenmiş veriyi alıp sırasıyla PDF ve CSV formatında çıktı veriyor. PDF çıktısı, imza alanları içerecek şekilde tasarlandı.
+Firma Arama (/api/companies/search): Autocomplete özelliği için firmaları isim veya vergi numarasına göre arayan yeni bir endpoint eklendi.
+Kullanıcı Rol Yetkilendirmeleri: isAdmin, isUretimOrAdmin, isSevkiyatOrAdmin middleware'ları tüm ilgili API'lere doğru şekilde uygulandı.
+Daha Detaylı Hata Yönetimi: Middleware'lar ve rota işleyicilerindeki hata yakalama mekanizmaları daha robust hale getirildi.
+moment.js kullanımı: Tarih biçimlendirme ve işlem kodları oluşturma için moment.js entegre edildi.
+Lütfen aşağıdaki kodu mevcut app.js dosyanızın tamamı ile değiştirin.
+
+Güncel app.js (Backend) - Final Versiyon
+22 May 02:03
+
+Aç
+Sonraki Adımlar:
+
+Mevcut app.js dosyanızın içeriğini yukarıdaki kod ile tamamen değiştirin.
+Gerekli npm paketlerini (html-pdf, moment) yüklediğinizden emin olun: npm install html-pdf moment
+Backend sunucunuzu yeniden başlatın.
+Tüm API endpoint'lerini (özellikle güncellenen ve yeni eklenenleri) Postman/Insomnia gibi bir araçla titizlikle test edin.
+POST /api/transactions (hem companyId ile hem de null ile type: 'in' ve type: 'out' için)
+POST /api/transactions (type: 'adjustment' ve new_stock_quantity ile, companyId'nin null olduğundan emin olun)
+PUT /api/products/:id (özellikle is_active durumunu değiştirmeyi deneyin)
+DELETE /api/products/:id (hem hareketli hem de hareketsiz ürünler için)
+GET /api/reports/transactions (tüm filtre kombinasyonlarıyla ve arama sorgusuyla)
+GET /api/reports/transactions/pdf ve GET /api/reports/transactions/csv (farklı filtrelerle indirmeyi deneyin)
+GET /api/companies/search ve GET /api/products/search (autocomplete için)
